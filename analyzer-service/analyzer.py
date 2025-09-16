@@ -22,7 +22,7 @@ def get_connection():
         logging.error(f"❌ Database connection failed: {e}")
         raise
 
-@app.route("/protocol_summary", methods=["GET"])
+@app.route("/summary", methods=["GET"])
 def protocol_summary():
     query = "SELECT protocol, COUNT(*) FROM packets GROUP BY protocol"
     logging.debug(f"Running query: {query}")
