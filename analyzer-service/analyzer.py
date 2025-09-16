@@ -22,7 +22,7 @@ def get_connection():
         logging.error(f"❌ Database connection failed: {e}")
         raise
 
-# ✅ Matches UI (protocol summary)
+# ✅ Protocol summary for UI
 @app.route("/protocol_summary", methods=["GET"])
 def protocol_summary():
     query = "SELECT protocol, COUNT(*) FROM packets GROUP BY protocol"
@@ -32,10 +32,12 @@ def protocol_summary():
     cur.execute(query)
     rows = cur.fetchall()
     conn.close()
-    logging.info(f"✅ Retrieved protocol summary: {rows}")
-    return jsonify(rows)
+    # Convert to dict for safe JSON output
+    summary_dict = {row[0]: row[1] for row in rows}
+    logging.info(f"✅ Retrieved protocol summary: {summary_dict}")
+    return jsonify(summary_dict)
 
-# ✅ Matches UI (packets table)
+# ✅ Get latest packets
 @app.route("/packets", methods=["GET"])
 def get_packets():
     query = "SELECT id, src_ip, dst_ip, protocol, summary FROM packets ORDER BY id DESC LIMIT 50"
@@ -45,10 +47,14 @@ def get_packets():
     cur.execute(query)
     rows = cur.fetchall()
     conn.close()
-    logging.info(f"✅ Retrieved {len(rows)} packets")
-    return jsonify(rows)
+    packets = [
+        {"id": r[0], "src_ip": r[1], "dst_ip": r[2], "protocol": r[3], "summary": r[4]}
+        for r in rows
+    ]
+    logging.info(f"✅ Retrieved {len(packets)} packets")
+    return jsonify(packets)
 
-# ✅ New endpoint for filtering by protocol
+# ✅ Filter packets by protocol
 @app.route("/filter", methods=["GET"])
 def filter_by_protocol():
     protocol = request.args.get("protocol")
@@ -62,8 +68,12 @@ def filter_by_protocol():
     cur.execute(query, (protocol,))
     rows = cur.fetchall()
     conn.close()
-    logging.info(f"✅ Retrieved {len(rows)} packets for protocol {protocol}")
-    return jsonify(rows)
+    packets = [
+        {"id": r[0], "src_ip": r[1], "dst_ip": r[2], "protocol": r[3], "summary": r[4]}
+        for r in rows
+    ]
+    logging.info(f"✅ Retrieved {len(packets)} packets for protocol {protocol}")
+    return jsonify(packets)
 
 if __name__ == "__main__":
     logging.info("🚀 Starting Analyzer service on port 5003")
