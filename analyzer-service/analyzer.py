@@ -10,7 +10,7 @@ conn = psycopg2.connect(
     dbname="packets",
     user="admin",
     password="secret",
-    host="localhost",   # changed here
+    host="127.0.0.1",   # changed here
     port=5432
 )
 cur = conn.cursor()
