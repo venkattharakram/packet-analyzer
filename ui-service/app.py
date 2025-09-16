@@ -12,7 +12,7 @@ def index():
     packets = []
     summary = {}
     try:
-        summary = requests.get(f"{ANALYZER_URL}/summary").json()
+        summary = requests.get(f"{ANALYZER_URL}/protocol_summary").json()
         if protocol:
             packets = requests.get(f"{ANALYZER_URL}/filter?protocol={protocol}").json()
         else:
