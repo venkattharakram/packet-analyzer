@@ -1,38 +1,51 @@
-from flask import Flask, request, jsonify
-import psycopg2, time
+from flask import Flask, jsonify
+import psycopg2
+import logging
+
+# Enable detailed logging
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
 
 app = Flask(__name__)
 
-time.sleep(3)
+def get_connection():
+    try:
+        conn = psycopg2.connect(
+            dbname="packets",
+            user="admin",
+            password="secret",
+            host="127.0.0.1",
+            port=5432
+        )
+        logging.info("✅ Connected to PostgreSQL database")
+        return conn
+    except Exception as e:
+        logging.error(f"❌ Database connection failed: {e}")
+        raise
 
-# Connect to local PostgreSQL
-conn = psycopg2.connect(
-    dbname="packets",
-    user="admin",
-    password="secret",
-    host="127.0.0.1",   # changed here
-    port=5432
-)
-cur = conn.cursor()
+@app.route("/protocol_summary", methods=["GET"])
+def protocol_summary():
+    query = "SELECT protocol, COUNT(*) FROM packets GROUP BY protocol"
+    logging.debug(f"Running query: {query}")
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(query)
+    rows = cur.fetchall()
+    conn.close()
+    logging.info(f"✅ Retrieved protocol summary: {rows}")
+    return jsonify(rows)
 
 @app.route("/packets", methods=["GET"])
 def get_packets():
-    cur.execute("SELECT id, src_ip, dst_ip, protocol, summary FROM packets LIMIT 20")
+    query = "SELECT id, src_ip, dst_ip, protocol, summary FROM packets ORDER BY id DESC LIMIT 50"
+    logging.debug(f"Running query: {query}")
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(query)
     rows = cur.fetchall()
-    return jsonify(rows)
-
-@app.route("/summary", methods=["GET"])
-def get_summary():
-    cur.execute("SELECT protocol, COUNT(*) FROM packets GROUP BY protocol")
-    rows = cur.fetchall()
-    return jsonify({r[0]: r[1] for r in rows})
-
-@app.route("/filter", methods=["GET"])
-def filter_protocol():
-    proto = request.args.get("protocol")
-    cur.execute("SELECT id, src_ip, dst_ip, summary FROM packets WHERE protocol=%s LIMIT 20", (proto,))
-    rows = cur.fetchall()
+    conn.close()
+    logging.info(f"✅ Retrieved {len(rows)} packets")
     return jsonify(rows)
 
 if __name__ == "__main__":
+    logging.info("🚀 Starting Analyzer service on port 5003")
     app.run(host="0.0.0.0", port=5003)
