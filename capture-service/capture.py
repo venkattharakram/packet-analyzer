@@ -31,7 +31,7 @@ if __name__ == "__main__":
     if MODE.upper() == "LIVE":
         iface = get_default_iface()
         print(f"🔴 Sniffing live packets on {iface}...")
-        sniff(iface=iface, prn=send_packet, count=50)
+        sniff(iface=iface, prn=send_packet, count=10000)
     else:
         print(f"🔵 Reading from PCAP file: {PCAP_FILE}")
         packets = rdpcap(PCAP_FILE)
