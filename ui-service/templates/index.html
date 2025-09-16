@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Packet Analyzer Dashboard</title>
+</head>
+<body>
+  <h1>Packet Analyzer</h1>
+
+  <h2>Protocol Summary</h2>
+  <ul>
+    {% for proto, count in summary.items() %}
+      <li><a href="/?protocol={{ proto }}">{{ proto }}</a>: {{ count }}</li>
+    {% endfor %}
+  </ul>
+
+  <h2>Packets {% if selected %}(Filtered: {{ selected }}){% endif %}</h2>
+  <table border="1">
+    <tr><th>ID</th><th>Source IP</th><th>Dest IP</th><th>Protocol</th><th>Summary</th></tr>
+    {% for pkt in packets %}
+      <tr>
+        <td>{{ pkt[0] }}</td>
+        <td>{{ pkt[1] }}</td>
+        <td>{{ pkt[2] }}</td>
+        <td>{{ pkt[3] }}</td>
+        <td>{{ pkt[4] }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>

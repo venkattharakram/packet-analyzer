@@ -1,0 +1,55 @@
+version: "3.9"
+
+services:
+  capture-service:
+    build: ./capture-service
+    environment:
+      - MODE=PCAP
+    volumes:
+      - ./sample-pcaps:/pcaps
+    network_mode: "host"
+    privileged: true
+    depends_on:
+      - parser-service
+
+  parser-service:
+    build: ./parser-service
+    ports:
+      - "5001:5001"
+    depends_on:
+      - persistor-service
+
+  persistor-service:
+    build: ./persistor-service
+    ports:
+      - "5002:5002"
+    depends_on:
+      - storage-service
+
+  analyzer-service:
+    build: ./analyzer-service
+    ports:
+      - "5003:5003"
+    depends_on:
+      - storage-service
+
+  storage-service:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: packets
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  ui-service:
+    build: ./ui-service
+    ports:
+      - "8080:8080"
+    depends_on:
+      - analyzer-service
+
+volumes:
+  db_data:
