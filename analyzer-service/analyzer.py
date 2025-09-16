@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 import psycopg2
 import logging
 
@@ -22,7 +22,8 @@ def get_connection():
         logging.error(f"❌ Database connection failed: {e}")
         raise
 
-@app.route("/summary", methods=["GET"])
+# ✅ Matches UI (protocol summary)
+@app.route("/protocol_summary", methods=["GET"])
 def protocol_summary():
     query = "SELECT protocol, COUNT(*) FROM packets GROUP BY protocol"
     logging.debug(f"Running query: {query}")
@@ -34,6 +35,7 @@ def protocol_summary():
     logging.info(f"✅ Retrieved protocol summary: {rows}")
     return jsonify(rows)
 
+# ✅ Matches UI (packets table)
 @app.route("/packets", methods=["GET"])
 def get_packets():
     query = "SELECT id, src_ip, dst_ip, protocol, summary FROM packets ORDER BY id DESC LIMIT 50"
@@ -44,6 +46,23 @@ def get_packets():
     rows = cur.fetchall()
     conn.close()
     logging.info(f"✅ Retrieved {len(rows)} packets")
+    return jsonify(rows)
+
+# ✅ New endpoint for filtering by protocol
+@app.route("/filter", methods=["GET"])
+def filter_by_protocol():
+    protocol = request.args.get("protocol")
+    if not protocol:
+        return jsonify([])
+
+    query = "SELECT id, src_ip, dst_ip, protocol, summary FROM packets WHERE protocol=%s ORDER BY id DESC LIMIT 50"
+    logging.debug(f"Running query: {query} with protocol={protocol}")
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(query, (protocol,))
+    rows = cur.fetchall()
+    conn.close()
+    logging.info(f"✅ Retrieved {len(rows)} packets for protocol {protocol}")
     return jsonify(rows)
 
 if __name__ == "__main__":
