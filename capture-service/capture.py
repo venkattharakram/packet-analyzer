@@ -18,7 +18,7 @@ def get_default_iface():
     if iface:
         return iface
     # Otherwise try common names
-    for candidate in ["ens5", "eth0", "wlan0"]:
+    for candidate in ["enp39s0", "ens5", "eth0", "wlan0"]:
         if candidate in get_if_list():
             return candidate
     raise RuntimeError("No suitable network interface found. Available: " + str(get_if_list()))
