@@ -3,7 +3,8 @@ import requests
 from scapy.all import Ether, IP, TCP, UDP, DNS, DNSQR, ICMP
 
 app = Flask(__name__)
-PERSISTOR_URL = "http://persistor-service:5002/store"
+#PERSISTOR_URL = "http://persistor-service:5002/store"
+PERSISTOR_URL = "http://127.0.0.1:5002/store"
 
 @app.route("/parse", methods=["POST"])
 def parse_packet():
