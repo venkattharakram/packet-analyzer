@@ -2,10 +2,16 @@ from flask import Flask, request, jsonify
 import psycopg2, time
 
 app = Flask(__name__)
-time.sleep(5)
 
+time.sleep(3)
+
+# Connect to local PostgreSQL
 conn = psycopg2.connect(
-    dbname="packets", user="admin", password="secret", host="storage-service"
+    dbname="packets",
+    user="admin",
+    password="secret",
+    host="localhost",   # changed here
+    port=5432
 )
 cur = conn.cursor()
 
