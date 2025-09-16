@@ -3,11 +3,20 @@ import psycopg2, time
 
 app = Flask(__name__)
 
-time.sleep(5)
+# Wait a little in case DB needs to be ready
+time.sleep(3)
+
+# Connect to local PostgreSQL (running on localhost)
 conn = psycopg2.connect(
-    dbname="packets", user="admin", password="secret", host="storage-service"
+    dbname="packets",
+    user="admin",
+    password="secret",
+    host="localhost",   # changed from storage-service → localhost
+    port=5432
 )
 cur = conn.cursor()
+
+# Ensure table exists
 cur.execute("""
 CREATE TABLE IF NOT EXISTS packets (
     id SERIAL PRIMARY KEY,
@@ -28,8 +37,15 @@ def store_packet():
     cur.execute("""
         INSERT INTO packets (src_ip, dst_ip, protocol, src_port, dst_port, dns_query, summary)
         VALUES (%s, %s, %s, %s, %s, %s, %s)
-    """, (pkt["src_ip"], pkt["dst_ip"], pkt["protocol"],
-          pkt["src_port"], pkt["dst_port"], pkt["dns_query"], pkt["summary"]))
+    """, (
+        pkt.get("src_ip"),
+        pkt.get("dst_ip"),
+        pkt.get("protocol"),
+        pkt.get("src_port"),
+        pkt.get("dst_port"),
+        pkt.get("dns_query"),
+        pkt.get("summary")
+    ))
     conn.commit()
     return jsonify({"status": "stored"})
 
