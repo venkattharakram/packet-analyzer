@@ -15,14 +15,20 @@
 
   <h2>Packets {% if selected %}(Filtered: {{ selected }}){% endif %}</h2>
   <table border="1">
-    <tr><th>ID</th><th>Source IP</th><th>Dest IP</th><th>Protocol</th><th>Summary</th></tr>
+    <tr>
+      <th>ID</th>
+      <th>Source IP</th>
+      <th>Dest IP</th>
+      <th>Protocol</th>
+      <th>Summary</th>
+    </tr>
     {% for pkt in packets %}
       <tr>
-        <td>{{ pkt[0] }}</td>
-        <td>{{ pkt[1] }}</td>
-        <td>{{ pkt[2] }}</td>
-        <td>{{ pkt[3] }}</td>
-        <td>{{ pkt[4] }}</td>
+        <td>{{ pkt.id }}</td>
+        <td>{{ pkt.src_ip }}</td>
+        <td>{{ pkt.dst_ip }}</td>
+        <td>{{ pkt.protocol }}</td>
+        <td>{{ pkt.summary }}</td>
       </tr>
     {% endfor %}
   </table>
