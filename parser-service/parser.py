@@ -12,7 +12,7 @@ def parse_packet():
     structured = {
         "src_ip": None, "dst_ip": None,
         "src_port": None, "dst_port": None,
-        "protocol": "Others", "dns_query": None,   # changed default Unknown -> Others
+        "protocol": "Others", "dns_query": None,   # Default is Others
         "summary": pkt_data["raw"]
     }
     try:
@@ -57,6 +57,10 @@ def parse_packet():
                 structured["protocol"] = "ICMP"
             else:
                 structured["protocol"] = "IPv6"
+
+        # 🔹 Fallback: ensure never "Unknown"
+        if structured["protocol"] == "Unknown":
+            structured["protocol"] = "Others"
 
     except Exception as e:
         print("Parse error:", e)
