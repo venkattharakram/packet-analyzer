@@ -29,41 +29,15 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@packet.com
       PGADMIN_DEFAULT_PASSWORD: admin123
-      PGADMIN_DB_HOST: db
-      PGADMIN_DB_PORT: 5432
-      PGADMIN_DB_NAME: packetdb
-      PGADMIN_DB_USER: packetuser
-      PGADMIN_DB_PASSWORD: packetpass
-    ports:
-      - "5050:80"
     volumes:
       - ./pgadmin_config:/pgadmin4/servers
-      - ./pgadmin_entrypoint.sh:/pgadmin4/entrypoint.sh
-    entrypoint: ["/bin/sh", "/pgadmin4/entrypoint.sh"]
+    ports:
+      - "5050:80"
     depends_on:
       db:
         condition: service_healthy
     networks:
       - packet-net
-
-  parser-service:
-    build: ./parser-service
-    container_name: parser-service
-    environment:
-      SERVICE_PORT: 5001
-      DATABASE_URL: "postgresql://packetuser:packetpass@db:5432/packetdb"
-    ports:
-      - "5001:5001"
-    networks:
-      - packet-net
-    depends_on:
-      persistor-service:
-        condition: service_started
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5001/health || exit 1"]
-      interval: 15s
-      retries: 5
-      timeout: 5s
 
   persistor-service:
     build: ./persistor-service
@@ -80,7 +54,26 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5002/health || exit 1"]
-      interval: 15s
+      interval: 10s
+      retries: 5
+      timeout: 5s
+
+  parser-service:
+    build: ./parser-service
+    container_name: parser-service
+    environment:
+      SERVICE_PORT: 5001
+      DATABASE_URL: "postgresql://packetuser:packetpass@db:5432/packetdb"
+    ports:
+      - "5001:5001"
+    networks:
+      - packet-net
+    depends_on:
+      persistor-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5001/health || exit 1"]
+      interval: 10s
       retries: 5
       timeout: 5s
 
@@ -99,7 +92,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5003/health || exit 1"]
-      interval: 15s
+      interval: 10s
       retries: 5
       timeout: 5s
 
