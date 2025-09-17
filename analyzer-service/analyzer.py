@@ -32,15 +32,14 @@ def protocol_summary():
     cur.execute(query)
     rows = cur.fetchall()
     conn.close()
-    # Convert to dict for safe JSON output
     summary_dict = {row[0]: row[1] for row in rows}
     logging.info(f"✅ Retrieved protocol summary: {summary_dict}")
     return jsonify(summary_dict)
 
-# ✅ Get latest packets
+# ✅ Get latest packets (now includes timestamp)
 @app.route("/packets", methods=["GET"])
 def get_packets():
-    query = "SELECT id, src_ip, dst_ip, protocol, summary FROM packets ORDER BY id DESC LIMIT 50"
+    query = "SELECT id, src_ip, dst_ip, protocol, summary, timestamp FROM packets ORDER BY id DESC LIMIT 50"
     logging.debug(f"Running query: {query}")
     conn = get_connection()
     cur = conn.cursor()
@@ -48,20 +47,27 @@ def get_packets():
     rows = cur.fetchall()
     conn.close()
     packets = [
-        {"id": r[0], "src_ip": r[1], "dst_ip": r[2], "protocol": r[3], "summary": r[4]}
+        {
+            "id": r[0],
+            "src_ip": r[1],
+            "dst_ip": r[2],
+            "protocol": r[3],
+            "summary": r[4],
+            "timestamp": r[5].isoformat() if r[5] else None
+        }
         for r in rows
     ]
     logging.info(f"✅ Retrieved {len(packets)} packets")
     return jsonify(packets)
 
-# ✅ Filter packets by protocol
+# ✅ Filter packets by protocol (also includes timestamp)
 @app.route("/filter", methods=["GET"])
 def filter_by_protocol():
     protocol = request.args.get("protocol")
     if not protocol:
         return jsonify([])
 
-    query = "SELECT id, src_ip, dst_ip, protocol, summary FROM packets WHERE protocol=%s ORDER BY id DESC LIMIT 50"
+    query = "SELECT id, src_ip, dst_ip, protocol, summary, timestamp FROM packets WHERE protocol=%s ORDER BY id DESC LIMIT 50"
     logging.debug(f"Running query: {query} with protocol={protocol}")
     conn = get_connection()
     cur = conn.cursor()
@@ -69,7 +75,14 @@ def filter_by_protocol():
     rows = cur.fetchall()
     conn.close()
     packets = [
-        {"id": r[0], "src_ip": r[1], "dst_ip": r[2], "protocol": r[3], "summary": r[4]}
+        {
+            "id": r[0],
+            "src_ip": r[1],
+            "dst_ip": r[2],
+            "protocol": r[3],
+            "summary": r[4],
+            "timestamp": r[5].isoformat() if r[5] else None
+        }
         for r in rows
     ]
     logging.info(f"✅ Retrieved {len(packets)} packets for protocol {protocol}")
