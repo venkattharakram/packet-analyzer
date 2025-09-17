@@ -1,10 +1,12 @@
-FROM python:3.10-slim
+# Dockerfile
+FROM python:3.12-slim
 
 WORKDIR /app
+
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
-COPY analyzer.py /app/
+COPY . .
 
-EXPOSE 5003
-CMD ["python", "analyzer.py"]
+# Use environment variable SERVICE_PORT for Gunicorn binding
+CMD ["sh", "-c", "gunicorn -w 4 -b 0.0.0.0:${SERVICE_PORT} analyzer:app"]
