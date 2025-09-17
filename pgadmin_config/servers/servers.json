@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Packet Analyzer DB",
+      "Group": "PacketAnalyzer",
+      "Host": "db",
+      "Port": 5432,
+      "MaintenanceDB": "packetdb",
+      "Username": "packetuser",
+      "Password": "packetpass",
+      "SSLMode": "prefer"
+    }
+  }
+}
