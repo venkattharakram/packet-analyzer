@@ -1,14 +1,13 @@
 from flask import Flask, request, jsonify
 import requests
 from scapy.all import Ether, IP, IPv6, TCP, UDP, DNS, DNSQR, ICMP, ARP
+from datetime import datetime
 
-# ✅ Define Flask app before any route
 app = Flask(__name__)
 
-# Persistor URL (local or service-based depending on environment)
+# Persistor endpoint
 # PERSISTOR_URL = "http://persistor-service:5002/store"
 PERSISTOR_URL = "http://127.0.0.1:5002/store"
-
 
 @app.route("/parse", methods=["POST"])
 def parse_packet():
@@ -18,9 +17,10 @@ def parse_packet():
         "dst_ip": None,
         "src_port": None,
         "dst_port": None,
-        "protocol": "Others",   # Default is "Others", never "Unknown"
+        "protocol": "Others",   # Default fallback (never Unknown)
         "dns_query": None,
-        "summary": pkt_data.get("raw", "")
+        "summary": pkt_data.get("raw", ""),
+        "timestamp": datetime.utcnow().isoformat()  # store UTC timestamp
     }
 
     try:
@@ -73,21 +73,20 @@ def parse_packet():
             else:
                 structured["protocol"] = "IPv6"
 
-        # ✅ Ensure fallback always goes to "Others"
+        # Ensure no "Unknown" leaks out
         if structured["protocol"] == "Unknown":
             structured["protocol"] = "Others"
 
     except Exception as e:
         print("Parse error:", e)
 
-    # ---- Send parsed data to Persistor ----
+    # ---- Send structured packet to persistor ----
     try:
         requests.post(PERSISTOR_URL, json=structured)
     except Exception as e:
         print("Persistor not ready:", e)
 
     return jsonify({"status": "parsed"})
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001)
