@@ -21,6 +21,8 @@
       <th>Dest IP</th>
       <th>Protocol</th>
       <th>Summary</th>
+      <th>Timestamp (UTC)</th>
+      <th>Timestamp (IST)</th>
     </tr>
     {% for pkt in packets %}
       <tr>
@@ -29,6 +31,14 @@
         <td>{{ pkt.dst_ip }}</td>
         <td>{{ pkt.protocol }}</td>
         <td>{{ pkt.summary }}</td>
+        <td>{{ pkt.timestamp }}</td>
+        <td>
+          {% if pkt.timestamp %}
+            {{ (pkt.timestamp | to_datetime).astimezone(pytz.timezone('Asia/Kolkata')) }}
+          {% else %}
+            N/A
+          {% endif %}
+        </td>
       </tr>
     {% endfor %}
   </table>
