@@ -2,19 +2,26 @@ from flask import Flask, request, jsonify
 import requests
 from scapy.all import Ether, IP, IPv6, TCP, UDP, DNS, DNSQR, ICMP, ARP, DHCP, SNMP
 import time
+import logging
 
 app = Flask(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+# Use Docker service name, not 127.0.0.1
 PERSISTOR_URL = "http://persistor-service:5002/store"
 
-def post_to_persistor(payload, retries=5, delay=2):
-    for _ in range(retries):
+# Optional retry delay for persistor
+def send_to_persistor(data, retries=5, delay=2):
+    for attempt in range(retries):
         try:
-            requests.post(PERSISTOR_URL, json=payload, timeout=5)
-            return True
-        except Exception as e:
-            print("Persistor not ready, retrying...", e)
-            time.sleep(delay)
-    print("Failed to persist packet after retries")
+            resp = requests.post(PERSISTOR_URL, json=data, timeout=5)
+            if resp.status_code == 200:
+                logging.info(f"✅ Packet sent to persistor: {data.get('protocol')}")
+                return True
+        except requests.exceptions.RequestException as e:
+            logging.warning(f"Attempt {attempt+1}/{retries} failed: {e}")
+        time.sleep(delay)
+    logging.error(f"❌ Failed to send packet after {retries} attempts")
     return False
 
 @app.route("/parse", methods=["POST"])
@@ -24,7 +31,7 @@ def parse_packet():
         "src_ip": None, "dst_ip": None,
         "src_port": None, "dst_port": None,
         "protocol": "Other", "dns_query": None,
-        "summary": pkt_data["raw"]
+        "summary": pkt_data.get("raw", "")
     }
 
     try:
@@ -75,10 +82,13 @@ def parse_packet():
             structured["protocol"] = "IPv6"
 
     except Exception as e:
-        print("Parse error:", e)
+        logging.error(f"Parse error: {e}")
 
-    post_to_persistor(structured)
+    # Send to persistor with retries
+    send_to_persistor(structured)
+
     return jsonify({"status": "parsed"})
 
 if __name__ == "__main__":
+    logging.info("🚀 Starting Parser service on port 5001")
     app.run(host="0.0.0.0", port=5001)
