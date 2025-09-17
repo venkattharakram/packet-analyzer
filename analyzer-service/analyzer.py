@@ -6,6 +6,10 @@ logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(m
 
 app = Flask(__name__)
 
+@app.route("/health", methods=["GET"])
+def health():
+    return "OK", 200
+
 # Wait for DB to be ready
 time.sleep(3)
 
