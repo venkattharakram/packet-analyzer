@@ -4,9 +4,10 @@ FROM python:3.12-slim
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt gunicorn
+RUN pip install --no-cache-dir -r requirements.txt 
 
 COPY . .
 
-# Use environment variable SERVICE_PORT for Gunicorn binding
-CMD ["sh", "-c", "gunicorn -w 4 -b 0.0.0.0:${SERVICE_PORT} analyzer:app"]
+# First run db_init.py, then start Gunicorn
+CMD ["sh", "-c", "python db_init.py && gunicorn -b 0.0.0.0:5003 analyzer:app"]
+

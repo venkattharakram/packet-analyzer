@@ -2,8 +2,8 @@ from flask import Flask, render_template, request
 import requests
 
 app = Flask(__name__)
-#ANALYZER_URL = "http://analyzer-service:5003"
-ANALYZER_URL = "http://127.0.0.1:5003"
+ANALYZER_URL = "http://analyzer-service:5003"
+#ANALYZER_URL = "http://127.0.0.1:5003"
 
 
 @app.route("/")
@@ -23,3 +23,8 @@ def index():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+
+@app.route("/health")
+def health():
+    return "OK", 200
+
