@@ -2,8 +2,11 @@ from flask import Flask, render_template, request, jsonify
 import requests
 from datetime import datetime
 import pytz
+from flask_cors import CORS   # ✅ added this
 
 app = Flask(__name__)
+CORS(app)   # ✅ enable CORS
+
 # ANALYZER_URL = "http://analyzer-service:5003"
 ANALYZER_URL = "http://127.0.0.1:5003"
 
