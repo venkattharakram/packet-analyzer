@@ -11,7 +11,7 @@ conn = psycopg2.connect(
     dbname="packets",
     user="admin",
     password="secret",
-    host="localhost",   # changed from storage-service → localhost
+    host="packet-db",   # changed from storage-service → localhost
     port=5432
 )
 cur = conn.cursor()
