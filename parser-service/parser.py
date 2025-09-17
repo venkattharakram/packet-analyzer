@@ -1,14 +1,28 @@
-from scapy.all import Ether, IP, IPv6, TCP, UDP, DNS, DNSQR, ICMP, ARP, ICMPv6EchoRequest, ICMPv6EchoReply
+from flask import Flask, request, jsonify
+import requests
+from scapy.all import Ether, IP, IPv6, TCP, UDP, DNS, DNSQR, ICMP, ARP
+
+# ✅ Define Flask app before any route
+app = Flask(__name__)
+
+# Persistor URL (local or service-based depending on environment)
+# PERSISTOR_URL = "http://persistor-service:5002/store"
+PERSISTOR_URL = "http://127.0.0.1:5002/store"
+
 
 @app.route("/parse", methods=["POST"])
 def parse_packet():
     pkt_data = request.json
     structured = {
-        "src_ip": None, "dst_ip": None,
-        "src_port": None, "dst_port": None,
-        "protocol": "Others", "dns_query": None,
-        "summary": pkt_data["raw"]
+        "src_ip": None,
+        "dst_ip": None,
+        "src_port": None,
+        "dst_port": None,
+        "protocol": "Others",   # Default is "Others", never "Unknown"
+        "dns_query": None,
+        "summary": pkt_data.get("raw", "")
     }
+
     try:
         scapy_pkt = Ether(bytes.fromhex(pkt_data["hex"]))
 
@@ -22,16 +36,19 @@ def parse_packet():
         elif scapy_pkt.haslayer(IP):
             structured["src_ip"] = scapy_pkt[IP].src
             structured["dst_ip"] = scapy_pkt[IP].dst
+
             if scapy_pkt.haslayer(TCP):
                 structured["src_port"] = scapy_pkt[TCP].sport
                 structured["dst_port"] = scapy_pkt[TCP].dport
                 structured["protocol"] = "HTTP" if 80 in [scapy_pkt[TCP].sport, scapy_pkt[TCP].dport] else "TCP"
+
             elif scapy_pkt.haslayer(UDP):
                 structured["src_port"] = scapy_pkt[UDP].sport
                 structured["dst_port"] = scapy_pkt[UDP].dport
                 structured["protocol"] = "DNS" if 53 in [scapy_pkt[UDP].sport, scapy_pkt[UDP].dport] else "UDP"
                 if scapy_pkt.haslayer(DNSQR):
-                    structured["dns_query"] = scapy_pkt[DNSQR].qname.decode()
+                    structured["dns_query"] = scapy_pkt[DNSQR].qname.decode(errors="ignore")
+
             elif scapy_pkt.haslayer(ICMP):
                 structured["protocol"] = "ICMP"
 
@@ -39,29 +56,38 @@ def parse_packet():
         elif scapy_pkt.haslayer(IPv6):
             structured["src_ip"] = scapy_pkt[IPv6].src
             structured["dst_ip"] = scapy_pkt[IPv6].dst
+
             if scapy_pkt.haslayer(TCP):
-                structured["protocol"] = "TCP"
                 structured["src_port"] = scapy_pkt[TCP].sport
                 structured["dst_port"] = scapy_pkt[TCP].dport
+                structured["protocol"] = "TCP"
+
             elif scapy_pkt.haslayer(UDP):
-                structured["protocol"] = "DNS" if 53 in [scapy_pkt[UDP].sport, scapy_pkt[UDP].dport] else "UDP"
                 structured["src_port"] = scapy_pkt[UDP].sport
                 structured["dst_port"] = scapy_pkt[UDP].dport
-            elif scapy_pkt.haslayer(ICMPv6EchoRequest) or scapy_pkt.haslayer(ICMPv6EchoReply):
+                structured["protocol"] = "DNS" if 53 in [scapy_pkt[UDP].sport, scapy_pkt[UDP].dport] else "UDP"
+
+            elif scapy_pkt.haslayer(ICMP):
                 structured["protocol"] = "ICMP"
+
             else:
                 structured["protocol"] = "IPv6"
 
-        # ---- Default fallback ----
+        # ✅ Ensure fallback always goes to "Others"
         if structured["protocol"] == "Unknown":
             structured["protocol"] = "Others"
 
     except Exception as e:
         print("Parse error:", e)
 
+    # ---- Send parsed data to Persistor ----
     try:
         requests.post(PERSISTOR_URL, json=structured)
     except Exception as e:
         print("Persistor not ready:", e)
 
     return jsonify({"status": "parsed"})
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5001)
