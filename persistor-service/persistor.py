@@ -8,9 +8,9 @@ time.sleep(3)
 
 # Connect to local PostgreSQL (running on localhost)
 conn = psycopg2.connect(
-    dbname="packets",
-    user="admin",
-    password="secret",
+    dbname="packetdb",
+    user="packetuser",
+    password="packetpass",
     host="packet-db",   # changed from storage-service → localhost
     port=5432
 )
