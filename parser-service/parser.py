@@ -7,6 +7,10 @@ import logging
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
+@app.route("/health", methods=["GET"])
+def health():
+    return "OK", 200
+
 # Use Docker service name, not 127.0.0.1
 PERSISTOR_URL = "http://persistor-service:5002/store"
 
