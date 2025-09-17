@@ -19,7 +19,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U packetuser"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
       start_period: 10s
 
   pgadmin:
@@ -53,10 +53,11 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5002/health || exit 1"]
+      test: ["CMD-SHELL", "python3 -c 'import urllib.request; exit(0) if urllib.request.urlopen(\"http://localhost:5002/health\").read().decode() == \"OK\" else exit(1)'"]
       interval: 10s
-      retries: 5
       timeout: 5s
+      retries: 10
+      start_period: 10s
 
   parser-service:
     build: ./parser-service
@@ -72,10 +73,11 @@ services:
       persistor-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5001/health || exit 1"]
+      test: ["CMD-SHELL", "python3 -c 'import urllib.request; exit(0) if urllib.request.urlopen(\"http://localhost:5001/health\").read().decode() == \"OK\" else exit(1)'"]
       interval: 10s
-      retries: 5
       timeout: 5s
+      retries: 10
+      start_period: 10s
 
   analyzer-service:
     build: ./analyzer-service
@@ -93,8 +95,9 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5003/health || exit 1"]
       interval: 10s
-      retries: 5
       timeout: 5s
+      retries: 10
+      start_period: 10s
 
 volumes:
   db_data:
@@ -102,3 +105,4 @@ volumes:
 networks:
   packet-net:
     driver: bridge
+
