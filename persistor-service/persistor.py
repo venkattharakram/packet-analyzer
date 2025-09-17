@@ -24,39 +24,33 @@ except Exception as e:
     logging.error(f"❌ DB connection failed: {e}")
     raise
 
-# Ensure table exists
-cur.execute("""
-CREATE TABLE IF NOT EXISTS packets (
-    id SERIAL PRIMARY KEY,
-    src_ip VARCHAR(50),
-    dst_ip VARCHAR(50),
-    protocol VARCHAR(20),
-    src_port VARCHAR(10),
-    dst_port VARCHAR(10),
-    dns_query TEXT,
-    summary TEXT
-);
-""")
-conn.commit()
+# ----------------- DB Initialization -----------------
+def init_db():
+    # Create table if it doesn't exist
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS packets (
+        id SERIAL PRIMARY KEY,
+        src_ip VARCHAR(50),
+        dst_ip VARCHAR(50),
+        protocol VARCHAR(20),
+        src_port VARCHAR(10),
+        dst_port VARCHAR(10),
+        dns_query TEXT,
+        summary TEXT
+    );
+    """)
+    conn.commit()
+    logging.info("✅ Table 'packets' ensured")
 
-# Ensure sequence exists and is synced with max id
-cur.execute("""
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relkind='S' AND relname='packets_id_seq') THEN
-        CREATE SEQUENCE packets_id_seq;
-        ALTER SEQUENCE packets_id_seq OWNED BY packets.id;
-    END IF;
-END
-$$;
-""")
-conn.commit()
+    # Sync sequence to max(id) safely
+    cur.execute("""
+    SELECT setval(pg_get_serial_sequence('packets','id'), COALESCE(MAX(id),0)) FROM packets;
+    """)
+    conn.commit()
+    logging.info("✅ Sequence 'packets_id_seq' synced with max(id)")
 
-cur.execute("""
-SELECT setval('packets_id_seq', COALESCE((SELECT MAX(id) FROM packets), 0) + 1, false);
-""")
-conn.commit()
-logging.info("✅ Sequence packets_id_seq synced with max(id)")
+init_db()
+# -----------------------------------------------------
 
 @app.route("/store", methods=["POST"])
 def store_packet():
