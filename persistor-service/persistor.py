@@ -31,6 +31,20 @@ CREATE TABLE IF NOT EXISTS packets (
 """)
 conn.commit()
 
+# Ensure the sequence exists and is set to max id
+cur.execute("""
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname='packets_id_seq') THEN
+        CREATE SEQUENCE packets_id_seq;
+        ALTER SEQUENCE packets_id_seq OWNED BY packets.id;
+        SELECT setval('packets_id_seq', COALESCE((SELECT MAX(id) FROM packets), 0));
+    END IF;
+END
+$$;
+""")
+conn.commit()
+
 @app.route("/store", methods=["POST"])
 def store_packet():
     pkt = request.json
