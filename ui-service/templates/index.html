@@ -33,8 +33,9 @@
         <td>{{ pkt.summary }}</td>
         <td>{{ pkt.timestamp }}</td>
         <td>
-          {% if pkt.timestamp %}
-            {{ (pkt.timestamp | to_datetime).astimezone(pytz.timezone('Asia/Kolkata')) }}
+          {% set dt = pkt.timestamp | to_datetime %}
+          {% if dt %}
+            {{ dt | to_ist }}
           {% else %}
             N/A
           {% endif %}
