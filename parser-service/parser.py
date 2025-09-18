@@ -6,21 +6,22 @@ from datetime import datetime
 app = Flask(__name__)
 
 # Persistor endpoint
-# PERSISTOR_URL = "http://persistor-service:5002/store"
 PERSISTOR_URL = "http://127.0.0.1:5002/store"
 
 @app.route("/parse", methods=["POST"])
 def parse_packet():
     pkt_data = request.json
+
     structured = {
         "src_ip": None,
         "dst_ip": None,
         "src_port": None,
         "dst_port": None,
-        "protocol": "Others",   # Default fallback (never Unknown)
+        "protocol": "Others",   # Default fallback
         "dns_query": None,
         "summary": pkt_data.get("raw", ""),
-        "timestamp": datetime.utcnow().isoformat()  # store UTC timestamp
+        "timestamp": datetime.utcnow().isoformat(),  # UTC timestamp
+        "source": pkt_data.get("source", "LIVE")     # 🔑 Capture mode
     }
 
     try:
@@ -86,7 +87,7 @@ def parse_packet():
     except Exception as e:
         print("Persistor not ready:", e)
 
-    return jsonify({"status": "parsed"})
+    return jsonify({"status": "parsed", "source": structured["source"]})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001)
