@@ -119,6 +119,22 @@ services:
       retries: 5
       start_period: 10s
 
+  tests:
+    build:
+      context: ./tests
+    container_name: packet-tests
+    depends_on:
+      - db
+      - persistor-service
+      - parser-service
+      - analyzer-service
+      - ui-service
+    networks:
+      - packet-net
+    volumes:
+      - ./tests:/app/tests
+    command: >
+      sh -c "pytest -v --disable-warnings --maxfail=1"
 
 
 volumes:
@@ -127,4 +143,3 @@ volumes:
 networks:
   packet-net:
     driver: bridge
-
