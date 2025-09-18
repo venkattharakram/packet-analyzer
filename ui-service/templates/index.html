@@ -2,58 +2,80 @@
 <html>
 <head>
   <title>Packet Analyzer Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <style>
+    body { margin: 20px; }
+    .card { margin-bottom: 20px; }
+    table { font-size: 14px; }
+    th { background: #f8f9fa; }
+  </style>
 </head>
 <body>
-  <h1>Packet Analyzer</h1>
+  <div class="container">
+    <h1 class="mb-4">📡 Packet Analyzer</h1>
 
-  <h2>Capture Mode</h2>
-  <p id="capture-mode">Loading...</p>
+    <!-- Capture Mode -->
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Capture Mode</h5>
+        <p class="card-text"><strong>{{ mode }}</strong></p>
+      </div>
+    </div>
 
-  <h2>Protocol Summary</h2>
-  <ul>
-    {% for proto, count in summary.items() %}
-      <li><a href="/?protocol={{ proto }}">{{ proto }}</a>: {{ count }}</li>
-    {% endfor %}
-    <li><a href="/?protocol=ALL">All Protocols</a></li>
-  </ul>
+    <!-- Protocol Summary -->
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Protocol Summary</h5>
+        <ul>
+          {% for proto, count in summary.items() %}
+            <li><a href="/?protocol={{ proto }}">{{ proto }}</a>: {{ count }}</li>
+          {% endfor %}
+          <li><a href="/?protocol=ALL">All Protocols</a></li>
+        </ul>
+      </div>
+    </div>
 
-  <h2>Packets {% if selected %}(Filtered: {{ selected }}){% endif %}</h2>
-  <table border="1">
-    <tr>
-      <th>ID</th>
-      <th>Source IP</th>
-      <th>Dest IP</th>
-      <th>Protocol</th>
-      <th>Summary</th>
-      <th>Timestamp (UTC)</th>
-      <th>Timestamp (IST)</th>
-    </tr>
-    {% for pkt in packets %}
-      <tr>
-        <td>{{ pkt.id }}</td>
-        <td>{{ pkt.src_ip }}</td>
-        <td>{{ pkt.dst_ip }}</td>
-        <td>{{ pkt.protocol }}</td>
-        <td>{{ pkt.summary }}</td>
-        <td>{{ pkt.timestamp }}</td>
-        <td>
-          {% if pkt.timestamp %}
-            {{ pkt.timestamp | to_datetime | to_ist }}
-          {% endif %}
-        </td>
-      </tr>
-    {% endfor %}
-  </table>
-
-  <script>
-    fetch("/mode")
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById("capture-mode").innerText = data.mode;
-      })
-      .catch(() => {
-        document.getElementById("capture-mode").innerText = "Unknown";
-      });
-  </script>
+    <!-- Packets Table -->
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">
+          Packets 
+          {% if selected %}(Filtered: {{ selected }}){% endif %}
+        </h5>
+        <div class="table-responsive">
+          <table class="table table-bordered table-striped">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Source IP</th>
+                <th>Dest IP</th>
+                <th>Protocol</th>
+                <th>Summary</th>
+                <th>Timestamp (UTC)</th>
+                <th>Timestamp (IST)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for pkt in packets %}
+                <tr>
+                  <td>{{ pkt.id }}</td>
+                  <td>{{ pkt.src_ip }}</td>
+                  <td>{{ pkt.dst_ip }}</td>
+                  <td>{{ pkt.protocol }}</td>
+                  <td>{{ pkt.summary }}</td>
+                  <td>{{ pkt.timestamp }}</td>
+                  <td>
+                    {% if pkt.timestamp %}
+                      {{ pkt.timestamp | to_datetime | to_ist }}
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
