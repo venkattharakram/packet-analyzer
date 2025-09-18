@@ -4,18 +4,17 @@ import requests, time, os
 
 # Mode & file inputs
 MODE = os.getenv("MODE", "PCAP")        # MODE=LIVE or PCAP
-PCAP_FILE = os.getenv("PCAP_FILE", "sample-pcaps/dns.cap")  # take from env, fallback to dns.cap
+PCAP_FILE = os.getenv("PCAP_FILE", "sample-pcaps/dns.cap")  # fallback default
 
 # Parser service endpoint
-#PARSER_URL = "http://parser-service:5001/parse"
 PARSER_URL = "http://127.0.0.1:5001/parse"
 
-def send_packet(pkt):
-    """Send packet summary + raw hex to parser service"""
+def send_packet(pkt, source="LIVE"):
+    """Send packet summary + raw hex + source to parser"""
     data = {
-        "raw": pkt.summary(),
-        "hex": bytes(pkt).hex(),
-        "source": "PCAP" if MODE.upper() == "PCAP" else "LIVE"
+        "raw": pkt.summary(),        # human-readable
+        "hex": bytes(pkt).hex(),     # raw bytes
+        "source": source             # LIVE / PCAP
     }
     try:
         requests.post(PARSER_URL, json=data)
@@ -23,7 +22,6 @@ def send_packet(pkt):
         print("Error sending to parser:", e)
 
 def get_default_iface():
-    """Auto-detect a usable network interface"""
     iface = os.getenv("IFACE")
     if iface:
         return iface
@@ -33,33 +31,27 @@ def get_default_iface():
     raise RuntimeError("No suitable network interface found. Available: " + str(get_if_list()))
 
 if __name__ == "__main__":
-    time.sleep(5)  # wait for other services to start
+    time.sleep(3)
 
     if MODE.upper() == "LIVE":
-        # ---- Live sniffing ----
         iface = get_default_iface()
         print(f"🔴 Sniffing live packets on {iface}...")
-        sniff(iface=iface, prn=send_packet)  # no count limit → will run until stopped
-
+        sniff(iface=iface, prn=lambda pkt: send_packet(pkt, source="LIVE"))
     else:
-        # ---- PCAP replay ----
         print(f"🔵 Reading from PCAP file: {PCAP_FILE}")
         packets = []
         try:
-            # Try rdpcap first
             packets = rdpcap(PCAP_FILE)
-        except Exception as e:
-            print(f"⚠️ Failed to read with rdpcap: {e}")
+        except Exception:
             try:
-                # Try PcapReader as fallback
                 with PcapReader(PCAP_FILE) as pcap_reader:
                     packets = [pkt for pkt in pcap_reader]
             except Exception as e2:
-                print(f"❌ Could not read {PCAP_FILE} as PCAP or PCAPNG: {e2}")
+                print(f"❌ Could not read {PCAP_FILE}: {e2}")
                 packets = []
 
         print(f"✅ Loaded {len(packets)} packets from {PCAP_FILE}")
         for pkt in packets:
-            send_packet(pkt)
+            send_packet(pkt, source="PCAP")
 
         print("🎉 Finished sending all packets from PCAP.")
