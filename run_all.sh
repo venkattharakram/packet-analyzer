@@ -34,8 +34,12 @@ if [ "$choice" == "2" ]; then
    # nohup sudo MODE=LIVE python3 capture-service/capture.py > logs/capture.log 2>&1 &
     nohup sudo MODE=LIVE python3 capture-service/capture.py &> logs/capture.log  &
 else
-    echo "🔵 Running in PCAP mode (sample-pcaps/dns.cap)"
-    nohup MODE=PCAP python3 capture-service/capture.py > logs/capture.log 2>&1 &
+    echo "Available PCAP files in sample-pcaps/:"
+    ls sample-pcaps/*.pcap 2>/dev/null || echo "⚠️ No .pcap files found!"
+    read -p "Enter pcap filename (default: sample-pcaps/dns.cap): " pcap_file
+    pcap_file=${pcap_file:-sample-pcaps/dns.cap}
+    echo "🔵 Running in PCAP mode ($pcap_file)"
+    nohup MODE=PCAP PCAP_FILE=$pcap_file python3 capture-service/capture.py > logs/capture.log 2>&1 &
 fi
 
 echo "🎉 All services are running! Check logs/ folder for details."
