@@ -7,10 +7,10 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-# Point to analyzer
+# ANALYZER_URL = "http://analyzer-service:5003"
 ANALYZER_URL = "http://127.0.0.1:5003"
 
-# --- Custom Jinja filters ---
+# --- Custom Jinja filters for datetime handling ---
 @app.template_filter('to_datetime')
 def to_datetime(value):
     try:
@@ -26,42 +26,60 @@ def to_ist(value):
     except Exception:
         return value
 
-# --- UI route ---
+# --- HTML Dashboard ---
 @app.route("/")
 def index():
     protocol = request.args.get("protocol")
-    packets, summary, mode = [], {}, "Unknown"
+    packets, summary = [], {}
+
+    # --- Read capture mode from file ---
+    mode = "PCAP (sample-pcaps/dns.cap)"  # default
+    try:
+        with open("capture_mode.txt", "r") as f:
+            mode = f.read().strip()
+    except FileNotFoundError:
+        pass
 
     try:
         summary = requests.get(f"{ANALYZER_URL}/protocol_summary").json()
-        mode = requests.get(f"{ANALYZER_URL}/mode").json().get("mode", "Unknown")
-
         if protocol and protocol != "ALL":
             packets = requests.get(f"{ANALYZER_URL}/filter?protocol={protocol}").json()
-        elif protocol == "ALL":
-            packets = requests.get(f"{ANALYZER_URL}/all_packets").json()
         else:
             packets = requests.get(f"{ANALYZER_URL}/packets").json()
     except Exception as e:
         print("UI Error:", e)
 
-    return render_template("index.html", 
-                           packets=packets, 
-                           summary=summary, 
-                           selected=protocol, 
-                           mode=mode)
+    return render_template(
+        "index.html",
+        packets=packets,
+        summary=summary,
+        selected=protocol,
+        mode=mode   # ✅ pass to template
+    )
 
-# --- APIs ---
+# --- JSON APIs ---
 @app.route("/api/packets", methods=["GET"])
 def api_packets():
+    """Return packets with pagination"""
+    page = int(request.args.get("page", 1))
+    limit = int(request.args.get("limit", 50))
+    offset = (page - 1) * limit
+
     try:
         packets = requests.get(f"{ANALYZER_URL}/packets").json()
-        return jsonify(packets)
+        paginated = packets[offset:offset + limit]
+        return jsonify({
+            "page": page,
+            "limit": limit,
+            "total": len(packets),
+            "packets": paginated
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/summary", methods=["GET"])
 def api_summary():
+    """Return protocol summary as JSON"""
     try:
         summary = requests.get(f"{ANALYZER_URL}/protocol_summary").json()
         return jsonify(summary)
@@ -70,13 +88,25 @@ def api_summary():
 
 @app.route("/api/filter", methods=["GET"])
 def api_filter():
+    """Return packets filtered by protocol with pagination"""
     protocol = request.args.get("protocol")
     if not protocol:
         return jsonify({"error": "Missing 'protocol' parameter"}), 400
 
+    page = int(request.args.get("page", 1))
+    limit = int(request.args.get("limit", 50))
+    offset = (page - 1) * limit
+
     try:
         packets = requests.get(f"{ANALYZER_URL}/filter?protocol={protocol}").json()
-        return jsonify(packets)
+        paginated = packets[offset:offset + limit]
+        return jsonify({
+            "protocol": protocol,
+            "page": page,
+            "limit": limit,
+            "total": len(packets),
+            "packets": paginated
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
