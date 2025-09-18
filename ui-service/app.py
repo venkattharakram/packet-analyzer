@@ -32,24 +32,15 @@ def index():
 
     try:
         summary = requests.get(f"{ANALYZER_URL}/protocol_summary").json()
-        if source:
-            packets = requests.get(f"{ANALYZER_URL}/filter_by_source?source={source}").json()
-        elif protocol and protocol != "ALL":
-            packets = requests.get(f"{ANALYZER_URL}/filter?protocol={protocol}").json()
-        else:
-            packets = requests.get(f"{ANALYZER_URL}/packets").json()
+        params = {}
+        if source: params["source"] = source
+        if protocol: params["protocol"] = protocol
+        packets = requests.get(f"{ANALYZER_URL}/packets", params=params).json()
     except Exception as e:
         print("UI Error:", e)
 
-    return render_template("index.html", packets=packets, summary=summary, selected=protocol, source=source)
-
-@app.route("/api/filter_by_source", methods=["GET"])
-def api_filter_by_source():
-    source = request.args.get("source")
-    try:
-        return jsonify(requests.get(f"{ANALYZER_URL}/filter_by_source?source={source}").json())
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return render_template("index.html", packets=packets, summary=summary,
+                           selected_protocol=protocol, selected_source=source)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
