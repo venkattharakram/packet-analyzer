@@ -95,5 +95,16 @@ def api_filter():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ✅ NEW ENDPOINT: all protocols grouped
+@app.route("/api/all_protocols", methods=["GET"])
+def api_all_protocols():
+    """Return all packets grouped by protocol"""
+    try:
+        grouped = requests.get(f"{ANALYZER_URL}/all_protocols").json()
+        return jsonify(grouped)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
