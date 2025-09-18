@@ -6,12 +6,15 @@
 <body>
   <h1>Packet Analyzer</h1>
 
+  <h2>Capture Mode</h2>
+  <p id="capture-mode">Loading...</p>
+
   <h2>Protocol Summary</h2>
   <ul>
     {% for proto, count in summary.items() %}
       <li><a href="/?protocol={{ proto }}">{{ proto }}</a>: {{ count }}</li>
     {% endfor %}
-    <li><a href="/?protocol=ALL">All Protocols</a></li> <!-- ✅ Added -->
+    <li><a href="/?protocol=ALL">All Protocols</a></li>
   </ul>
 
   <h2>Packets {% if selected %}(Filtered: {{ selected }}){% endif %}</h2>
@@ -23,7 +26,7 @@
       <th>Protocol</th>
       <th>Summary</th>
       <th>Timestamp (UTC)</th>
-      <th>Timestamp (IST)</th> <!-- ✅ Dual timestamp restored -->
+      <th>Timestamp (IST)</th>
     </tr>
     {% for pkt in packets %}
       <tr>
@@ -32,101 +35,25 @@
         <td>{{ pkt.dst_ip }}</td>
         <td>{{ pkt.protocol }}</td>
         <td>{{ pkt.summary }}</td>
-        <td>{{ pkt.timestamp if pkt.timestamp else "N/A" }}</td>
+        <td>{{ pkt.timestamp }}</td>
         <td>
           {% if pkt.timestamp %}
             {{ pkt.timestamp | to_datetime | to_ist }}
-          {% else %}
-            N/A
           {% endif %}
         </td>
       </tr>
     {% endfor %}
   </table>
 
-  <h2>All Protocols (Grouped View)</h2>
-  <div id="all-protocols"></div>
-
   <script>
-    let pages = {};   // Track page per protocol
-    const limit = 20; // Show 20 rows per page
-
-    async function loadProtocol(proto, page=1) {
-      try {
-        let response = await fetch(`/api/filter?protocol=${proto}&page=${page}&limit=${limit}`);
-        let data = await response.json();
-
-        let container = document.getElementById(`proto-${proto}`);
-        if (!container) return;
-
-        if (data.error) {
-          container.innerHTML = "<p style='color:red;'>Error: " + data.error + "</p>";
-          return;
-        }
-
-        // Build table
-        let html = `<table border="1">
-                      <tr><th>ID</th><th>Source</th><th>Destination</th><th>Summary</th><th>Timestamp (UTC)</th><th>Timestamp (IST)</th></tr>`;
-        data.packets.forEach(pkt => {
-          let utc = pkt.timestamp || "N/A";
-          let ist = "N/A";
-          if (pkt.timestamp) {
-            try {
-              let d = new Date(pkt.timestamp);
-              ist = d.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
-            } catch {}
-          }
-          html += `<tr>
-                     <td>${pkt.id}</td>
-                     <td>${pkt.src_ip || ""}</td>
-                     <td>${pkt.dst_ip || ""}</td>
-                     <td>${pkt.summary || ""}</td>
-                     <td>${utc}</td>
-                     <td>${ist}</td>
-                   </tr>`;
-        });
-        html += "</table>";
-
-        // Pagination buttons
-        html += `<button onclick="changePage('${proto}', ${page-1})" ${page<=1 ? "disabled" : ""}>Prev</button>`;
-        html += ` Page ${page} `;
-        html += `<button onclick="changePage('${proto}', ${page+1})" ${data.packets.length < limit ? "disabled" : ""}>Next</button>`;
-
-        container.innerHTML = html;
-        pages[proto] = page; // save current page
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    async function loadAllProtocols() {
-      try {
-        let response = await fetch("/api/summary");
-        let summary = await response.json();
-
-        let container = document.getElementById("all-protocols");
-        let html = "";
-
-        for (let proto in summary) {
-          html += `<h3>${proto}</h3><div id="proto-${proto}">Loading...</div>`;
-        }
-        container.innerHTML = html;
-
-        // Load each protocol’s first page
-        for (let proto in summary) {
-          loadProtocol(proto, 1);
-        }
-      } catch (e) {
-        console.error("Failed to load protocols", e);
-      }
-    }
-
-    function changePage(proto, newPage) {
-      if (newPage < 1) return;
-      loadProtocol(proto, newPage);
-    }
-
-    loadAllProtocols();
+    fetch("/mode")
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("capture-mode").innerText = data.mode;
+      })
+      .catch(() => {
+        document.getElementById("capture-mode").innerText = "Unknown";
+      });
   </script>
 </body>
 </html>
