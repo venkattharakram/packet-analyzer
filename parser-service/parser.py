@@ -6,21 +6,21 @@ from datetime import datetime
 app = Flask(__name__)
 
 # Persistor endpoint
-# PERSISTOR_URL = "http://persistor-service:5002/store"
 PERSISTOR_URL = "http://127.0.0.1:5002/store"
 
 @app.route("/parse", methods=["POST"])
 def parse_packet():
     pkt_data = request.json
     structured = {
-        "src_ip": None,
-        "dst_ip": None,
+        "src_ip": "-",
+        "dst_ip": "-",
         "src_port": None,
         "dst_port": None,
-        "protocol": "Others",   # Default fallback (never Unknown)
+        "protocol": "Others",   # default fallback
         "dns_query": None,
-        "summary": pkt_data.get("raw", ""),
-        "timestamp": datetime.utcnow().isoformat()  # store UTC timestamp
+        "summary": pkt_data.get("raw", ""),  # ✅ summary restored
+        "timestamp": datetime.utcnow().isoformat(),
+        "source": pkt_data.get("source", "LIVE")  # ✅ LIVE or PCAP
     }
 
     try:
@@ -40,12 +40,16 @@ def parse_packet():
             if scapy_pkt.haslayer(TCP):
                 structured["src_port"] = scapy_pkt[TCP].sport
                 structured["dst_port"] = scapy_pkt[TCP].dport
-                structured["protocol"] = "HTTP" if 80 in [scapy_pkt[TCP].sport, scapy_pkt[TCP].dport] else "TCP"
+                structured["protocol"] = (
+                    "HTTP" if 80 in [scapy_pkt[TCP].sport, scapy_pkt[TCP].dport] else "TCP"
+                )
 
             elif scapy_pkt.haslayer(UDP):
                 structured["src_port"] = scapy_pkt[UDP].sport
                 structured["dst_port"] = scapy_pkt[UDP].dport
-                structured["protocol"] = "DNS" if 53 in [scapy_pkt[UDP].sport, scapy_pkt[UDP].dport] else "UDP"
+                structured["protocol"] = (
+                    "DNS" if 53 in [scapy_pkt[UDP].sport, scapy_pkt[UDP].dport] else "UDP"
+                )
                 if scapy_pkt.haslayer(DNSQR):
                     structured["dns_query"] = scapy_pkt[DNSQR].qname.decode(errors="ignore")
 
@@ -65,17 +69,15 @@ def parse_packet():
             elif scapy_pkt.haslayer(UDP):
                 structured["src_port"] = scapy_pkt[UDP].sport
                 structured["dst_port"] = scapy_pkt[UDP].dport
-                structured["protocol"] = "DNS" if 53 in [scapy_pkt[UDP].sport, scapy_pkt[UDP].dport] else "UDP"
+                structured["protocol"] = (
+                    "DNS" if 53 in [scapy_pkt[UDP].sport, scapy_pkt[UDP].dport] else "UDP"
+                )
 
             elif scapy_pkt.haslayer(ICMP):
                 structured["protocol"] = "ICMP"
 
             else:
                 structured["protocol"] = "IPv6"
-
-        # Ensure no "Unknown" leaks out
-        if structured["protocol"] == "Unknown":
-            structured["protocol"] = "Others"
 
     except Exception as e:
         print("Parse error:", e)
