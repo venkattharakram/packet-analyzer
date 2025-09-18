@@ -1,129 +1,86 @@
 from flask import Flask, jsonify, request
-import psycopg2
-import logging
+import psycopg2, logging, os
 
-# Enable detailed logging
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
-
 app = Flask(__name__)
 
 def get_connection():
-    try:
-        conn = psycopg2.connect(
-            dbname="packets",
-            user="admin",
-            password="secret",
-            host="127.0.0.1",
-            port=5432
-        )
-        logging.info("✅ Connected to PostgreSQL database")
-        return conn
-    except Exception as e:
-        logging.error(f"❌ Database connection failed: {e}")
-        raise
+    return psycopg2.connect(
+        dbname="packets",
+        user="admin",
+        password="secret",
+        host="127.0.0.1",
+        port=5432
+    )
 
-# ✅ Protocol summary for UI
+# ✅ Protocol summary
 @app.route("/protocol_summary", methods=["GET"])
 def protocol_summary():
     query = "SELECT protocol, COUNT(*) FROM packets GROUP BY protocol"
-    logging.debug(f"Running query: {query}")
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(query)
     rows = cur.fetchall()
     conn.close()
-    summary_dict = {row[0]: row[1] for row in rows}
-    logging.info(f"✅ Retrieved protocol summary: {summary_dict}")
-    return jsonify(summary_dict)
+    return jsonify({row[0]: row[1] for row in rows})
 
-# ✅ Get latest packets (now includes timestamp)
+# ✅ Latest packets
 @app.route("/packets", methods=["GET"])
 def get_packets():
     query = "SELECT id, src_ip, dst_ip, protocol, summary, timestamp FROM packets ORDER BY id DESC LIMIT 50"
-    logging.debug(f"Running query: {query}")
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(query)
     rows = cur.fetchall()
     conn.close()
-    packets = [
-        {
-            "id": r[0],
-            "src_ip": r[1],
-            "dst_ip": r[2],
-            "protocol": r[3],
-            "summary": r[4],
-            "timestamp": r[5].isoformat() if r[5] else None
-        }
+    return jsonify([
+        {"id": r[0], "src_ip": r[1], "dst_ip": r[2], "protocol": r[3], "summary": r[4],
+         "timestamp": r[5].isoformat() if r[5] else None}
         for r in rows
-    ]
-    logging.info(f"✅ Retrieved {len(packets)} packets")
-    return jsonify(packets)
+    ])
 
-# ✅ Filter packets by protocol (also includes timestamp)
+# ✅ Filter packets
 @app.route("/filter", methods=["GET"])
 def filter_by_protocol():
     protocol = request.args.get("protocol")
     if not protocol:
         return jsonify([])
-
     query = "SELECT id, src_ip, dst_ip, protocol, summary, timestamp FROM packets WHERE protocol=%s ORDER BY id DESC LIMIT 50"
-    logging.debug(f"Running query: {query} with protocol={protocol}")
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(query, (protocol,))
     rows = cur.fetchall()
     conn.close()
-    packets = [
-        {
-            "id": r[0],
-            "src_ip": r[1],
-            "dst_ip": r[2],
-            "protocol": r[3],
-            "summary": r[4],
-            "timestamp": r[5].isoformat() if r[5] else None
-        }
+    return jsonify([
+        {"id": r[0], "src_ip": r[1], "dst_ip": r[2], "protocol": r[3], "summary": r[4],
+         "timestamp": r[5].isoformat() if r[5] else None}
         for r in rows
-    ]
-    logging.info(f"✅ Retrieved {len(packets)} packets for protocol {protocol}")
-    return jsonify(packets)
+    ])
 
-# ✅ New: All packets grouped by protocol
-@app.route("/all_protocols", methods=["GET"])
-def all_protocols():
-    """
-    Returns packets grouped by protocol:
-    {
-      "TCP": [...],
-      "UDP": [...],
-      "ICMP": [...],
-      "ARP": [...],
-      "Others": [...]
-    }
-    """
-    query = "SELECT id, src_ip, dst_ip, protocol, summary, timestamp FROM packets ORDER BY id DESC LIMIT 500"
-    logging.debug(f"Running query: {query}")
+# ✅ All protocols (no filter)
+@app.route("/all_packets", methods=["GET"])
+def all_packets():
+    query = "SELECT id, src_ip, dst_ip, protocol, summary, timestamp FROM packets ORDER BY id DESC LIMIT 200"
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(query)
     rows = cur.fetchall()
     conn.close()
+    return jsonify([
+        {"id": r[0], "src_ip": r[1], "dst_ip": r[2], "protocol": r[3], "summary": r[4],
+         "timestamp": r[5].isoformat() if r[5] else None}
+        for r in rows
+    ])
 
-    grouped = {}
-    for r in rows:
-        pkt = {
-            "id": r[0],
-            "src_ip": r[1],
-            "dst_ip": r[2],
-            "protocol": r[3],
-            "summary": r[4],
-            "timestamp": r[5].isoformat() if r[5] else None
-        }
-        grouped.setdefault(pkt["protocol"], []).append(pkt)
-
-    logging.info(f"✅ Grouped {len(rows)} packets by protocol")
-    return jsonify(grouped)
+# ✅ Mode info
+@app.route("/mode", methods=["GET"])
+def get_mode():
+    try:
+        with open("logs/mode.info", "r") as f:
+            mode = f.read().strip()
+    except:
+        mode = "Unknown"
+    return jsonify({"mode": mode})
 
 if __name__ == "__main__":
-    logging.info("🚀 Starting Analyzer service on port 5003")
     app.run(host="0.0.0.0", port=5003)
