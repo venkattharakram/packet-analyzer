@@ -8,8 +8,8 @@ app = Flask(__name__)
 CORS(app)
 
 ANALYZER_URL = "http://127.0.0.1:5003"
+CAPTURE_URL = "http://127.0.0.1:5004"   # 👈 capture service endpoint
 
-# --- Custom Jinja filters for datetime handling ---
 @app.template_filter('to_datetime')
 def to_datetime(value):
     try:
@@ -25,108 +25,25 @@ def to_ist(value):
     except Exception:
         return value
 
-# --- HTML Dashboard ---
+# --- NEW: Start Sniffing ---
+@app.route("/api/start_sniffing", methods=["POST"])
+def start_sniffing():
+    try:
+        res = requests.post(f"{CAPTURE_URL}/start_sniffing")
+        return jsonify({"status": "started", "response": res.json()})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# --- NEW: Stop Sniffing ---
+@app.route("/api/stop_sniffing", methods=["POST"])
+def stop_sniffing():
+    try:
+        res = requests.post(f"{CAPTURE_URL}/stop_sniffing")
+        return jsonify({"status": "stopped", "response": res.json()})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/")
 def index():
-    protocol = request.args.get("protocol")
-    source = request.args.get("source")  # NEW: All/LIVE/PCAP
-    packets = []
-    summary = {}
-    try:
-        summary = requests.get(f"{ANALYZER_URL}/protocol_summary").json()
-
-        # ✅ If source=LIVE or PCAP, call with ?source=...
-        if source:
-            packets = requests.get(f"{ANALYZER_URL}/packets?source={source}").json()
-        elif protocol:
-            packets = requests.get(f"{ANALYZER_URL}/filter?protocol={protocol}").json()
-        else:
-            packets = requests.get(f"{ANALYZER_URL}/packets").json()
-
-    except Exception as e:
-        print("UI Error:", e)
-
-    return render_template(
-        "index.html",
-        packets=packets,
-        summary=summary,
-        selected=protocol,
-        source=source
-    )
-
-# --- JSON APIs ---
-@app.route("/api/packets", methods=["GET"])
-def api_packets():
-    """Return packets with pagination"""
-    page = int(request.args.get("page", 1))
-    limit = int(request.args.get("limit", 50))
-    offset = (page - 1) * limit
-    source = request.args.get("source")
-
-    try:
-        if source:
-            packets = requests.get(f"{ANALYZER_URL}/packets?source={source}").json()
-        else:
-            packets = requests.get(f"{ANALYZER_URL}/packets").json()
-
-        paginated = packets[offset:offset + limit]
-        return jsonify({
-            "page": page,
-            "limit": limit,
-            "total": len(packets),
-            "packets": paginated
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/summary", methods=["GET"])
-def api_summary():
-    """Return protocol summary as JSON"""
-    try:
-        summary = requests.get(f"{ANALYZER_URL}/protocol_summary").json()
-        return jsonify(summary)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/filter", methods=["GET"])
-def api_filter():
-    """Return packets filtered by protocol with pagination"""
-    protocol = request.args.get("protocol")
-    source = request.args.get("source")
-    if not protocol:
-        return jsonify({"error": "Missing 'protocol' parameter"}), 400
-
-    page = int(request.args.get("page", 1))
-    limit = int(request.args.get("limit", 50))
-    offset = (page - 1) * limit
-
-    try:
-        if source:
-            packets = requests.get(f"{ANALYZER_URL}/filter?protocol={protocol}&source={source}").json()
-        else:
-            packets = requests.get(f"{ANALYZER_URL}/filter?protocol={protocol}").json()
-
-        paginated = packets[offset:offset + limit]
-        return jsonify({
-            "protocol": protocol,
-            "page": page,
-            "limit": limit,
-            "total": len(packets),
-            "packets": paginated
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/api/all_protocols", methods=["GET"])
-def api_all_protocols():
-    """Return packets from all protocols"""
-    try:
-        packets = requests.get(f"{ANALYZER_URL}/all_protocols").json()
-        return jsonify(packets)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    # existing index logic here
+    ...
