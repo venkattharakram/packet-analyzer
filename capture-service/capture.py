@@ -4,14 +4,13 @@ import requests, time, os
 
 # Mode & file inputs
 MODE = os.getenv("MODE", "PCAP")        # MODE=LIVE or PCAP
-PCAP_FILE = os.getenv("PCAP_FILE", "sample-pcaps/dns.cap")  # default PCAP file
+PCAP_FILE = os.getenv("PCAP_FILE", "sample-pcaps/dns.cap")  # fallback to dns.cap
 
 # Parser service endpoint
-#PARSER_URL = "http://parser-service:5001/parse"
 PARSER_URL = "http://127.0.0.1:5001/parse"
 
 def send_packet(pkt, source="LIVE"):
-    """Send packet summary + raw hex + source to parser service"""
+    """Send packet summary + raw hex to parser service"""
     data = {
         "raw": pkt.summary(),
         "hex": bytes(pkt).hex(),
@@ -33,20 +32,19 @@ def get_default_iface():
     raise RuntimeError("No suitable network interface found. Available: " + str(get_if_list()))
 
 if __name__ == "__main__":
-    time.sleep(5)  # wait for other services to start
+    time.sleep(5)  # wait for other services
 
     if MODE.upper() == "LIVE":
         # ---- Live sniffing ----
         iface = get_default_iface()
         print(f"🔴 Sniffing live packets on {iface}...")
-        sniff(iface=iface, prn=lambda pkt: send_packet(pkt, "LIVE"))
+        sniff(iface=iface, prn=lambda pkt: send_packet(pkt, "LIVE"))  # tag as LIVE
 
     else:
         # ---- PCAP replay ----
         print(f"🔵 Reading from PCAP file: {PCAP_FILE}")
         packets = []
         try:
-            # Try rdpcap first
             packets = rdpcap(PCAP_FILE)
         except Exception as e:
             print(f"⚠️ Failed to read with rdpcap: {e}")
@@ -59,6 +57,5 @@ if __name__ == "__main__":
 
         print(f"✅ Loaded {len(packets)} packets from {PCAP_FILE}")
         for pkt in packets:
-            send_packet(pkt, "PCAP")
-
+            send_packet(pkt, "PCAP")   # ✅ force source=PCAP
         print("🎉 Finished sending all packets from PCAP.")
