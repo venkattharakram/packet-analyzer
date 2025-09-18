@@ -27,22 +27,27 @@ def to_ist(value):
 @app.route("/")
 def index():
     protocol = request.args.get("protocol")
+    source = request.args.get("source")
     packets, summary = [], {}
+
     try:
         summary = requests.get(f"{ANALYZER_URL}/protocol_summary").json()
-        if protocol:
+        if source:
+            packets = requests.get(f"{ANALYZER_URL}/filter_by_source?source={source}").json()
+        elif protocol and protocol != "ALL":
             packets = requests.get(f"{ANALYZER_URL}/filter?protocol={protocol}").json()
         else:
             packets = requests.get(f"{ANALYZER_URL}/packets").json()
     except Exception as e:
         print("UI Error:", e)
 
-    return render_template("index.html", packets=packets, summary=summary, selected=protocol)
+    return render_template("index.html", packets=packets, summary=summary, selected=protocol, source=source)
 
-@app.route("/api/all_protocols", methods=["GET"])
-def api_all_protocols():
+@app.route("/api/filter_by_source", methods=["GET"])
+def api_filter_by_source():
+    source = request.args.get("source")
     try:
-        return jsonify(requests.get(f"{ANALYZER_URL}/all_protocols").json())
+        return jsonify(requests.get(f"{ANALYZER_URL}/filter_by_source?source={source}").json())
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
