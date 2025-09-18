@@ -1,86 +1,84 @@
-from flask import Flask, jsonify, request
-import psycopg2, logging, os
+from flask import Flask, render_template, request, jsonify
+import requests
+from datetime import datetime
+import pytz
+from flask_cors import CORS
 
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
 app = Flask(__name__)
+CORS(app)
 
-def get_connection():
-    return psycopg2.connect(
-        dbname="packets",
-        user="admin",
-        password="secret",
-        host="127.0.0.1",
-        port=5432
-    )
+# Point to analyzer
+ANALYZER_URL = "http://127.0.0.1:5003"
 
-# ✅ Protocol summary
-@app.route("/protocol_summary", methods=["GET"])
-def protocol_summary():
-    query = "SELECT protocol, COUNT(*) FROM packets GROUP BY protocol"
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(query)
-    rows = cur.fetchall()
-    conn.close()
-    return jsonify({row[0]: row[1] for row in rows})
+# --- Custom Jinja filters ---
+@app.template_filter('to_datetime')
+def to_datetime(value):
+    try:
+        return datetime.fromisoformat(value)
+    except Exception:
+        return None
 
-# ✅ Latest packets
-@app.route("/packets", methods=["GET"])
-def get_packets():
-    query = "SELECT id, src_ip, dst_ip, protocol, summary, timestamp FROM packets ORDER BY id DESC LIMIT 50"
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(query)
-    rows = cur.fetchall()
-    conn.close()
-    return jsonify([
-        {"id": r[0], "src_ip": r[1], "dst_ip": r[2], "protocol": r[3], "summary": r[4],
-         "timestamp": r[5].isoformat() if r[5] else None}
-        for r in rows
-    ])
+@app.template_filter('to_ist')
+def to_ist(value):
+    try:
+        tz = pytz.timezone('Asia/Kolkata')
+        return value.astimezone(tz).strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return value
 
-# ✅ Filter packets
-@app.route("/filter", methods=["GET"])
-def filter_by_protocol():
+# --- UI route ---
+@app.route("/")
+def index():
+    protocol = request.args.get("protocol")
+    packets, summary, mode = [], {}, "Unknown"
+
+    try:
+        summary = requests.get(f"{ANALYZER_URL}/protocol_summary").json()
+        mode = requests.get(f"{ANALYZER_URL}/mode").json().get("mode", "Unknown")
+
+        if protocol and protocol != "ALL":
+            packets = requests.get(f"{ANALYZER_URL}/filter?protocol={protocol}").json()
+        elif protocol == "ALL":
+            packets = requests.get(f"{ANALYZER_URL}/all_packets").json()
+        else:
+            packets = requests.get(f"{ANALYZER_URL}/packets").json()
+    except Exception as e:
+        print("UI Error:", e)
+
+    return render_template("index.html", 
+                           packets=packets, 
+                           summary=summary, 
+                           selected=protocol, 
+                           mode=mode)
+
+# --- APIs ---
+@app.route("/api/packets", methods=["GET"])
+def api_packets():
+    try:
+        packets = requests.get(f"{ANALYZER_URL}/packets").json()
+        return jsonify(packets)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/summary", methods=["GET"])
+def api_summary():
+    try:
+        summary = requests.get(f"{ANALYZER_URL}/protocol_summary").json()
+        return jsonify(summary)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/filter", methods=["GET"])
+def api_filter():
     protocol = request.args.get("protocol")
     if not protocol:
-        return jsonify([])
-    query = "SELECT id, src_ip, dst_ip, protocol, summary, timestamp FROM packets WHERE protocol=%s ORDER BY id DESC LIMIT 50"
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(query, (protocol,))
-    rows = cur.fetchall()
-    conn.close()
-    return jsonify([
-        {"id": r[0], "src_ip": r[1], "dst_ip": r[2], "protocol": r[3], "summary": r[4],
-         "timestamp": r[5].isoformat() if r[5] else None}
-        for r in rows
-    ])
+        return jsonify({"error": "Missing 'protocol' parameter"}), 400
 
-# ✅ All protocols (no filter)
-@app.route("/all_packets", methods=["GET"])
-def all_packets():
-    query = "SELECT id, src_ip, dst_ip, protocol, summary, timestamp FROM packets ORDER BY id DESC LIMIT 200"
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(query)
-    rows = cur.fetchall()
-    conn.close()
-    return jsonify([
-        {"id": r[0], "src_ip": r[1], "dst_ip": r[2], "protocol": r[3], "summary": r[4],
-         "timestamp": r[5].isoformat() if r[5] else None}
-        for r in rows
-    ])
-
-# ✅ Mode info
-@app.route("/mode", methods=["GET"])
-def get_mode():
     try:
-        with open("logs/mode.info", "r") as f:
-            mode = f.read().strip()
-    except:
-        mode = "Unknown"
-    return jsonify({"mode": mode})
+        packets = requests.get(f"{ANALYZER_URL}/filter?protocol={protocol}").json()
+        return jsonify(packets)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5003)
+    app.run(host="0.0.0.0", port=5000)
