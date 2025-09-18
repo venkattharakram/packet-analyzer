@@ -1,23 +1,22 @@
 from flask import Flask, request, jsonify
 import psycopg2, time
-from datetime import datetime
 
 app = Flask(__name__)
 
 # Wait a little in case DB needs to be ready
 time.sleep(3)
 
-# Connect to local PostgreSQL (running on localhost)
+# Connect to local PostgreSQL
 conn = psycopg2.connect(
     dbname="packets",
     user="admin",
     password="secret",
-    host="localhost",   # using local DB
+    host="localhost",
     port=5432
 )
 cur = conn.cursor()
 
-# Ensure table exists (now with timestamp)
+# Ensure table exists with source column
 cur.execute("""
 CREATE TABLE IF NOT EXISTS packets (
     id SERIAL PRIMARY KEY,
@@ -28,7 +27,8 @@ CREATE TABLE IF NOT EXISTS packets (
     dst_port VARCHAR(10),
     dns_query TEXT,
     summary TEXT,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    timestamp TIMESTAMP DEFAULT NOW(),
+    source VARCHAR(100) DEFAULT 'UNKNOWN'
 );
 """)
 conn.commit()
@@ -37,8 +37,8 @@ conn.commit()
 def store_packet():
     pkt = request.json
     cur.execute("""
-        INSERT INTO packets (src_ip, dst_ip, protocol, src_port, dst_port, dns_query, summary, timestamp)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO packets (src_ip, dst_ip, protocol, src_port, dst_port, dns_query, summary, timestamp, source)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), %s)
     """, (
         pkt.get("src_ip"),
         pkt.get("dst_ip"),
@@ -47,7 +47,7 @@ def store_packet():
         pkt.get("dst_port"),
         pkt.get("dns_query"),
         pkt.get("summary"),
-        datetime.utcnow()   # always store UTC timestamp
+        pkt.get("source", "UNKNOWN")
     ))
     conn.commit()
     return jsonify({"status": "stored"})
