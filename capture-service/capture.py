@@ -1,6 +1,7 @@
 from scapy.all import sniff, rdpcap, get_if_list
 from scapy.utils import PcapReader
-import requests, time, os
+import requests, time, os, json
+from datetime import datetime
 
 # Mode & file inputs
 MODE = os.getenv("MODE", "PCAP")        # MODE=LIVE or PCAP
@@ -9,6 +10,9 @@ PCAP_FILE = os.getenv("PCAP_FILE", "sample-pcaps/dns.cap")  # take from env, fal
 # Parser service endpoint
 #PARSER_URL = "http://parser-service:5001/parse"
 PARSER_URL = "http://127.0.0.1:5001/parse"
+
+# File where we save last PCAP info
+STATUS_FILE = "logs/last_pcap.json"
 
 def send_packet(pkt):
     """Send packet summary + raw hex to parser service"""
@@ -57,5 +61,17 @@ if __name__ == "__main__":
         print(f"✅ Loaded {len(packets)} packets from {PCAP_FILE}")
         for pkt in packets:
             send_packet(pkt)
+
+        # Save info for UI
+        try:
+            os.makedirs("logs", exist_ok=True)
+            with open(STATUS_FILE, "w") as f:
+                json.dump({
+                    "file": PCAP_FILE,
+                    "count": len(packets),
+                    "timestamp": datetime.utcnow().isoformat() + "Z"
+                }, f)
+        except Exception as e:
+            print("⚠️ Could not write PCAP status file:", e)
 
         print("🎉 Finished sending all packets from PCAP.")
