@@ -45,5 +45,61 @@ def stop_sniffing():
 
 @app.route("/")
 def index():
-    # existing index logic here
-    ...
+    protocol = request.args.get("protocol")
+    source = request.args.get("source")
+    packets, summary = [], {}
+    try:
+        summary = requests.get(f"{ANALYZER_URL}/protocol_summary").json()
+        params = {}
+        if source:
+            params["source"] = source
+        if protocol:
+            packets = requests.get(f"{ANALYZER_URL}/filter?protocol={protocol}", params=params).json()
+        else:
+            packets = requests.get(f"{ANALYZER_URL}/packets", params=params).json()
+    except Exception as e:
+        print("UI Error:", e)
+    return render_template("index.html", packets=packets, summary=summary, selected=protocol, selected_source=source)
+
+# --- JSON APIs ---
+@app.route("/api/packets", methods=["GET"])
+def api_packets():
+    try:
+        packets = requests.get(f"{ANALYZER_URL}/packets").json()
+        return jsonify({"limit": 50, "packets": packets})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/summary", methods=["GET"])
+def api_summary():
+    try:
+        summary = requests.get(f"{ANALYZER_URL}/protocol_summary").json()
+        return jsonify(summary)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/filter", methods=["GET"])
+def api_filter():
+    protocol = request.args.get("protocol")
+    source = request.args.get("source")
+    if not protocol:
+        return jsonify({"error": "Missing 'protocol' parameter"}), 400
+    try:
+        params = {}
+        if source:
+            params["source"] = source
+        packets = requests.get(f"{ANALYZER_URL}/filter?protocol={protocol}", params=params).json()
+        return jsonify(packets)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/all_protocols", methods=["GET"])
+def api_all_protocols():
+    try:
+        packets = requests.get(f"{ANALYZER_URL}/all_protocols").json()
+        return jsonify(packets)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
