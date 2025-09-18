@@ -10,12 +10,12 @@ PCAP_FILE = os.getenv("PCAP_FILE", "sample-pcaps/dns.cap")  # take from env, fal
 #PARSER_URL = "http://parser-service:5001/parse"
 PARSER_URL = "http://127.0.0.1:5001/parse"
 
-def send_packet(pkt, source="LIVE"):
-    """Send packet summary + raw hex + source to parser service"""
+def send_packet(pkt):
+    """Send packet summary + raw hex to parser service"""
     data = {
         "raw": pkt.summary(),
         "hex": bytes(pkt).hex(),
-        "source": source    # <-- mark packet source
+        "source": "PCAP" if MODE.upper() == "PCAP" else "LIVE"
     }
     try:
         requests.post(PARSER_URL, json=data)
@@ -39,7 +39,8 @@ if __name__ == "__main__":
         # ---- Live sniffing ----
         iface = get_default_iface()
         print(f"🔴 Sniffing live packets on {iface}...")
-        sniff(iface=iface, prn=lambda pkt: send_packet(pkt, source="LIVE"))  # send LIVE
+        sniff(iface=iface, prn=send_packet)  # no count limit → will run until stopped
+
     else:
         # ---- PCAP replay ----
         print(f"🔵 Reading from PCAP file: {PCAP_FILE}")
@@ -59,5 +60,6 @@ if __name__ == "__main__":
 
         print(f"✅ Loaded {len(packets)} packets from {PCAP_FILE}")
         for pkt in packets:
-            send_packet(pkt, source="PCAP")   # <-- send PCAP
+            send_packet(pkt)
+
         print("🎉 Finished sending all packets from PCAP.")
