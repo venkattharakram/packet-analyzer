@@ -1,11 +1,10 @@
 from scapy.all import sniff, rdpcap, get_if_list
 import requests, time, os
 
-MODE = os.getenv("MODE", "PCAP")   # MODE=LIVE or PCAP
-PCAP_FILE = "sample-pcaps/dns.cap"
+MODE = os.getenv("MODE", "PCAP")        # MODE=LIVE or PCAP
+PCAP_FILE = os.getenv("PCAP_FILE", "sample-pcaps/dns.cap")  # take from env, fallback to dns.cap
 #PARSER_URL = "http://parser-service:5001/parse"
 PARSER_URL = "http://127.0.0.1:5001/parse"
-
 
 def send_packet(pkt):
     data = {"raw": pkt.summary(), "hex": bytes(pkt).hex()}
