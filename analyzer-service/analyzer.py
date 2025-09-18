@@ -69,6 +69,30 @@ def filter_by_protocol():
         } for r in rows
     ])
 
+@app.route("/filter_by_source", methods=["GET"])
+def filter_by_source():
+    source = request.args.get("source")  # LIVE or PCAP
+    if not source:
+        return jsonify([])
+
+    query = "SELECT id, src_ip, dst_ip, protocol, summary, timestamp, source FROM packets WHERE source ILIKE %s ORDER BY id DESC LIMIT 50"
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(query, (f"%{source}%",))
+    rows = cur.fetchall()
+    conn.close()
+    return jsonify([
+        {
+            "id": r[0],
+            "src_ip": r[1],
+            "dst_ip": r[2],
+            "protocol": r[3],
+            "summary": r[4],
+            "timestamp": r[5].isoformat() if r[5] else None,
+            "source": r[6]
+        } for r in rows
+    ])
+
 @app.route("/all_protocols", methods=["GET"])
 def all_protocols():
     query = "SELECT id, src_ip, dst_ip, protocol, summary, timestamp, source FROM packets ORDER BY id DESC LIMIT 200"
