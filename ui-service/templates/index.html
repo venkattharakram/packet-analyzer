@@ -18,7 +18,13 @@
     <div class="card">
       <div class="card-body">
         <h5 class="card-title">Capture Mode</h5>
-        <p class="card-text"><strong>{{ mode }}</strong></p>
+        {% if mode == "LIVE" %}
+          <span class="badge bg-danger fs-6">LIVE</span>
+        {% elif mode == "PCAP" %}
+          <span class="badge bg-primary fs-6">PCAP</span>
+        {% else %}
+          <span class="badge bg-secondary fs-6">Unknown</span>
+        {% endif %}
       </div>
     </div>
 
@@ -30,7 +36,7 @@
           {% for proto, count in summary.items() %}
             <li><a href="/?protocol={{ proto }}">{{ proto }}</a>: {{ count }}</li>
           {% endfor %}
-          <li><a href="/?protocol=ALL">All Protocols</a></li>
+          <li><a href="/?protocol=ALL"><strong>All Protocols</strong></a></li>
         </ul>
       </div>
     </div>
