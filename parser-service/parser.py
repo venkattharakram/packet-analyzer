@@ -6,22 +6,25 @@ from datetime import datetime
 app = Flask(__name__)
 
 # Persistor endpoint
+# PERSISTOR_URL = "http://persistor-service:5002/store"
 PERSISTOR_URL = "http://127.0.0.1:5002/store"
+
 
 @app.route("/parse", methods=["POST"])
 def parse_packet():
     pkt_data = request.json
 
+    # Base structured packet
     structured = {
         "src_ip": None,
         "dst_ip": None,
         "src_port": None,
         "dst_port": None,
-        "protocol": "Others",   # Default fallback
+        "protocol": "Others",       # default (never Unknown)
         "dns_query": None,
-        "summary": pkt_data.get("raw", ""),
-        "timestamp": datetime.utcnow().isoformat(),  # UTC timestamp
-        "source": pkt_data.get("source", "LIVE")     # 🔑 Capture mode
+        "summary": pkt_data.get("raw", ""),   # always include summary
+        "timestamp": datetime.utcnow().isoformat(),
+        "source": pkt_data.get("source", "LIVE")  # take PCAP/LIVE from capture.py
     }
 
     try:
@@ -74,7 +77,7 @@ def parse_packet():
             else:
                 structured["protocol"] = "IPv6"
 
-        # Ensure no "Unknown" leaks out
+        # Ensure no "Unknown"
         if structured["protocol"] == "Unknown":
             structured["protocol"] = "Others"
 
@@ -87,7 +90,8 @@ def parse_packet():
     except Exception as e:
         print("Persistor not ready:", e)
 
-    return jsonify({"status": "parsed", "source": structured["source"]})
+    return jsonify({"status": "parsed"})
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001)
