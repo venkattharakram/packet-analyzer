@@ -39,7 +39,7 @@ else
     read -p "Enter pcap filename (default: sample-pcaps/dns.cap): " pcap_file
     pcap_file=${pcap_file:-sample-pcaps/dns.cap}
     echo "🔵 Running in PCAP mode ($pcap_file)"
-    nohup MODE=PCAP PCAP_FILE=$pcap_file python3 capture-service/capture.py > logs/capture.log 2>&1 &
+    nohup sudo MODE=PCAP PCAP_FILE=$pcap_file python3 capture-service/capture.py > logs/capture.log 2>&1 &
 fi
 
 echo "🎉 All services are running! Check logs/ folder for details."
