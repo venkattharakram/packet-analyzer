@@ -6,17 +6,17 @@ app = Flask(__name__)
 # Wait a little in case DB needs to be ready
 time.sleep(3)
 
-# Connect to local PostgreSQL
+# Connect to local PostgreSQL (running on localhost)
 conn = psycopg2.connect(
     dbname="packets",
     user="admin",
     password="secret",
-    host="localhost",
+    host="localhost",   # if DB is container, update accordingly
     port=5432
 )
 cur = conn.cursor()
 
-# Ensure table exists with source column
+# Ensure table exists (with new source column)
 cur.execute("""
 CREATE TABLE IF NOT EXISTS packets (
     id SERIAL PRIMARY KEY,
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS packets (
     dns_query TEXT,
     summary TEXT,
     timestamp TIMESTAMP DEFAULT NOW(),
-    source VARCHAR(100) DEFAULT 'UNKNOWN'
+    source VARCHAR(10) DEFAULT 'LIVE'  -- NEW COLUMN
 );
 """)
 conn.commit()
@@ -36,21 +36,25 @@ conn.commit()
 @app.route("/store", methods=["POST"])
 def store_packet():
     pkt = request.json
-    cur.execute("""
-        INSERT INTO packets (src_ip, dst_ip, protocol, src_port, dst_port, dns_query, summary, timestamp, source)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), %s)
-    """, (
-        pkt.get("src_ip"),
-        pkt.get("dst_ip"),
-        pkt.get("protocol"),
-        pkt.get("src_port"),
-        pkt.get("dst_port"),
-        pkt.get("dns_query"),
-        pkt.get("summary"),
-        pkt.get("source", "UNKNOWN")
-    ))
-    conn.commit()
-    return jsonify({"status": "stored"})
+    try:
+        cur.execute("""
+            INSERT INTO packets (src_ip, dst_ip, protocol, src_port, dst_port, dns_query, summary, timestamp, source)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), %s)
+        """, (
+            pkt.get("src_ip"),
+            pkt.get("dst_ip"),
+            pkt.get("protocol"),
+            pkt.get("src_port"),
+            pkt.get("dst_port"),
+            pkt.get("dns_query"),
+            pkt.get("summary"),
+            pkt.get("source", "LIVE")   # default to LIVE if missing
+        ))
+        conn.commit()
+        return jsonify({"status": "stored"})
+    except Exception as e:
+        conn.rollback()   # reset transaction on error
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5002)
