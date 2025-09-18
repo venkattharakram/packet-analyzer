@@ -1,42 +1,57 @@
 from flask import Flask, request, jsonify
-import psycopg2, logging
-from datetime import datetime
+import psycopg2, time, logging
 
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
 app = Flask(__name__)
+logging.basicConfig(level=logging.INFO)
 
-def get_connection():
-    return psycopg2.connect(
-        dbname="packets",
-        user="admin",
-        password="secret",
-        host="127.0.0.1",
-        port=5432
-    )
+time.sleep(3)  # wait for DB
+
+conn = psycopg2.connect(
+    dbname="packets",
+    user="admin",
+    password="secret",
+    host="localhost",
+    port=5432
+)
+cur = conn.cursor()
+
+# Ensure schema
+cur.execute("""
+CREATE TABLE IF NOT EXISTS packets (
+    id SERIAL PRIMARY KEY,
+    src_ip VARCHAR(50),
+    dst_ip VARCHAR(50),
+    protocol VARCHAR(20),
+    src_port VARCHAR(10),
+    dst_port VARCHAR(10),
+    dns_query TEXT,
+    summary TEXT,
+    timestamp TIMESTAMP,
+    source VARCHAR(10) DEFAULT 'LIVE'
+);
+""")
+conn.commit()
 
 @app.route("/store", methods=["POST"])
 def store_packet():
-    data = request.get_json()
-    raw = data.get("raw")
-    hexdata = data.get("hex")
-    source = data.get("source", "LIVE")   # default LIVE
-
-    try:
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO packets (src_ip, dst_ip, protocol, summary, timestamp, source)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (
-            "-", "-", "-", raw, datetime.utcnow(), source
-        ))
-        conn.commit()
-        conn.close()
-        return jsonify({"status": "ok"}), 200
-    except Exception as e:
-        logging.error(f"❌ Persist failed: {e}")
-        return jsonify({"status": "error", "error": str(e)}), 500
+    pkt = request.json
+    cur.execute("""
+        INSERT INTO packets (src_ip, dst_ip, protocol, src_port, dst_port, dns_query, summary, timestamp, source)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+    """, (
+        pkt.get("src_ip"),
+        pkt.get("dst_ip"),
+        pkt.get("protocol"),
+        pkt.get("src_port"),
+        pkt.get("dst_port"),
+        pkt.get("dns_query"),
+        pkt.get("summary"),
+        pkt.get("timestamp"),
+        pkt.get("source", "LIVE")
+    ))
+    conn.commit()
+    logging.info(f"Stored packet {pkt.get('protocol')} {pkt.get('src_ip')}->{pkt.get('dst_ip')}")
+    return jsonify({"status": "stored"})
 
 if __name__ == "__main__":
-    logging.info("🚀 Starting Persistor on port 5002")
     app.run(host="0.0.0.0", port=5002)
