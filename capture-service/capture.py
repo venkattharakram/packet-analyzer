@@ -1,57 +1,30 @@
-from scapy.all import sniff, rdpcap, get_if_list
-from scapy.utils import PcapReader
-import requests, time, os
+from flask import Flask, jsonify
+import threading
+from scapy.all import sniff
 
-# Mode & file inputs
-MODE = os.getenv("MODE", "PCAP")        # MODE=LIVE or PCAP
-PCAP_FILE = os.getenv("PCAP_FILE", "sample-pcaps/dns.cap")  # fallback default
+app = Flask(__name__)
 
-# Parser service endpoint
-PARSER_URL = "http://127.0.0.1:5001/parse"
+sniffer_thread = None
+stop_sniffer = threading.Event()
 
-def send_packet(pkt, source="LIVE"):
-    """Send packet summary + raw hex + source to parser"""
-    data = {
-        "raw": pkt.summary(),        # human-readable
-        "hex": bytes(pkt).hex(),     # raw bytes
-        "source": source             # LIVE / PCAP
-    }
-    try:
-        requests.post(PARSER_URL, json=data)
-    except Exception as e:
-        print("Error sending to parser:", e)
+def sniff_packets():
+    sniff(prn=lambda pkt: print(pkt.summary()), stop_filter=lambda x: stop_sniffer.is_set())
 
-def get_default_iface():
-    iface = os.getenv("IFACE")
-    if iface:
-        return iface
-    for candidate in ["enp39s0", "ens5", "eth0", "wlan0"]:
-        if candidate in get_if_list():
-            return candidate
-    raise RuntimeError("No suitable network interface found. Available: " + str(get_if_list()))
+@app.route("/start_sniffing", methods=["POST"])
+def start_sniffing():
+    global sniffer_thread, stop_sniffer
+    if sniffer_thread and sniffer_thread.is_alive():
+        return jsonify({"status": "already running"})
+    stop_sniffer.clear()
+    sniffer_thread = threading.Thread(target=sniff_packets, daemon=True)
+    sniffer_thread.start()
+    return jsonify({"status": "sniffing started"})
+
+@app.route("/stop_sniffing", methods=["POST"])
+def stop_sniffing():
+    global stop_sniffer
+    stop_sniffer.set()
+    return jsonify({"status": "sniffing stopped"})
 
 if __name__ == "__main__":
-    time.sleep(3)
-
-    if MODE.upper() == "LIVE":
-        iface = get_default_iface()
-        print(f"🔴 Sniffing live packets on {iface}...")
-        sniff(iface=iface, prn=lambda pkt: send_packet(pkt, source="LIVE"))
-    else:
-        print(f"🔵 Reading from PCAP file: {PCAP_FILE}")
-        packets = []
-        try:
-            packets = rdpcap(PCAP_FILE)
-        except Exception:
-            try:
-                with PcapReader(PCAP_FILE) as pcap_reader:
-                    packets = [pkt for pkt in pcap_reader]
-            except Exception as e2:
-                print(f"❌ Could not read {PCAP_FILE}: {e2}")
-                packets = []
-
-        print(f"✅ Loaded {len(packets)} packets from {PCAP_FILE}")
-        for pkt in packets:
-            send_packet(pkt, source="PCAP")
-
-        print("🎉 Finished sending all packets from PCAP.")
+    app.run(host="0.0.0.0", port=5004)
