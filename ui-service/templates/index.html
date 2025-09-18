@@ -21,8 +21,7 @@
       <th>Dest IP</th>
       <th>Protocol</th>
       <th>Summary</th>
-      <th>Timestamp (UTC)</th>
-      <th>Timestamp (IST)</th>
+      <th>Timestamp</th>
     </tr>
     {% for pkt in packets %}
       <tr>
@@ -31,17 +30,85 @@
         <td>{{ pkt.dst_ip }}</td>
         <td>{{ pkt.protocol }}</td>
         <td>{{ pkt.summary }}</td>
-        <td>{{ pkt.timestamp }}</td>
-        <td>
-          {% set dt = pkt.timestamp | to_datetime %}
-          {% if dt %}
-            {{ dt | to_ist }}
-          {% else %}
-            N/A
-          {% endif %}
-        </td>
+        <td>{{ pkt.timestamp|default("N/A") }}</td>
       </tr>
     {% endfor %}
   </table>
+
+  <h2>All Protocols (Grouped View)</h2>
+  <div id="all-protocols"></div>
+
+  <script>
+    let pages = {};   // Track page per protocol
+    const limit = 20; // Show 20 rows per page
+
+    async function loadProtocol(proto, page=1) {
+      try {
+        let response = await fetch(`/api/filter?protocol=${proto}&page=${page}&limit=${limit}`);
+        let data = await response.json();
+
+        let container = document.getElementById(`proto-${proto}`);
+        if (!container) return;
+
+        if (data.error) {
+          container.innerHTML = "<p style='color:red;'>Error: " + data.error + "</p>";
+          return;
+        }
+
+        // Build table
+        let html = `<table border="1">
+                      <tr><th>ID</th><th>Source</th><th>Destination</th><th>Summary</th><th>Timestamp</th></tr>`;
+        data.packets.forEach(pkt => {
+          html += `<tr>
+                     <td>${pkt.id}</td>
+                     <td>${pkt.src_ip || ""}</td>
+                     <td>${pkt.dst_ip || ""}</td>
+                     <td>${pkt.summary || ""}</td>
+                     <td>${pkt.timestamp || "N/A"}</td>
+                   </tr>`;
+        });
+        html += "</table>";
+
+        // Pagination buttons
+        html += `<button onclick="changePage('${proto}', ${page-1})" ${page<=1 ? "disabled" : ""}>Prev</button>`;
+        html += ` Page ${page} `;
+        html += `<button onclick="changePage('${proto}', ${page+1})" ${data.packets.length < limit ? "disabled" : ""}>Next</button>`;
+
+        container.innerHTML = html;
+        pages[proto] = page; // save current page
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function loadAllProtocols() {
+      try {
+        let response = await fetch("/api/summary");
+        let summary = await response.json();
+
+        let container = document.getElementById("all-protocols");
+        let html = "";
+
+        for (let proto in summary) {
+          html += `<h3>${proto}</h3><div id="proto-${proto}">Loading...</div>`;
+        }
+        container.innerHTML = html;
+
+        // Load each protocol’s first page
+        for (let proto in summary) {
+          loadProtocol(proto, 1);
+        }
+      } catch (e) {
+        console.error("Failed to load protocols", e);
+      }
+    }
+
+    function changePage(proto, newPage) {
+      if (newPage < 1) return;
+      loadProtocol(proto, newPage);
+    }
+
+    loadAllProtocols();
+  </script>
 </body>
 </html>
