@@ -4,15 +4,18 @@ import requests, time, os
 
 # Mode & file inputs
 MODE = os.getenv("MODE", "PCAP")        # MODE=LIVE or PCAP
-PCAP_FILE = os.getenv("PCAP_FILE", "sample-pcaps/dns.cap")  # fallback file
+PCAP_FILE = os.getenv("PCAP_FILE", "sample-pcaps/dns.cap")  # take from env, fallback to dns.cap
 
 # Parser service endpoint
-#PARSER_URL = "http://parser-service:5001/parse"
 PARSER_URL = "http://127.0.0.1:5001/parse"
 
-def send_packet(pkt):
-    """Send packet summary + raw hex to parser service"""
-    data = {"raw": pkt.summary(), "hex": bytes(pkt).hex()}
+def send_packet(pkt, source="LIVE"):
+    """Send packet summary + raw hex + source info to parser service"""
+    data = {
+        "raw": pkt.summary(),
+        "hex": bytes(pkt).hex(),
+        "source": source
+    }
     try:
         requests.post(PARSER_URL, json=data)
     except Exception as e:
@@ -31,17 +34,11 @@ def get_default_iface():
 if __name__ == "__main__":
     time.sleep(5)  # wait for other services to start
 
-    # Save mode info so UI can display
-    with open("capture_mode.txt", "w") as f:
-        if MODE.upper() == "LIVE":
-            f.write("LIVE")
-        else:
-            f.write(f"PCAP ({PCAP_FILE})")
-
     if MODE.upper() == "LIVE":
         iface = get_default_iface()
         print(f"🔴 Sniffing live packets on {iface}...")
-        sniff(iface=iface, prn=send_packet)  # runs until stopped
+        sniff(iface=iface, prn=lambda pkt: send_packet(pkt, source="LIVE"))  # run until stopped
+
     else:
         print(f"🔵 Reading from PCAP file: {PCAP_FILE}")
         packets = []
@@ -58,6 +55,6 @@ if __name__ == "__main__":
 
         print(f"✅ Loaded {len(packets)} packets from {PCAP_FILE}")
         for pkt in packets:
-            send_packet(pkt)
+            send_packet(pkt, source=f"PCAP:{PCAP_FILE}")
 
         print("🎉 Finished sending all packets from PCAP.")
