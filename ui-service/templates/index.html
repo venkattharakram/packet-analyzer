@@ -1,87 +1,76 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Packet Analyzer Dashboard</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-  <style>
-    body { margin: 20px; }
-    .card { margin-bottom: 20px; }
-    table { font-size: 14px; }
-    th { background: #f8f9fa; }
-  </style>
+  <title>Packet Analyzer</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body>
-  <div class="container">
-    <h1 class="mb-4">📡 Packet Analyzer</h1>
+<body class="bg-light">
+<div class="container py-4">
 
-    <!-- Capture Mode -->
-    <div class="card">
-      <div class="card-body">
-        <h5 class="card-title">Capture Mode</h5>
-        {% if mode == "LIVE" %}
-          <span class="badge bg-danger fs-6">LIVE</span>
-        {% elif mode == "PCAP" %}
-          <span class="badge bg-primary fs-6">PCAP</span>
-        {% else %}
-          <span class="badge bg-secondary fs-6">Unknown</span>
-        {% endif %}
-      </div>
+  <h1 class="mb-4"><span class="me-2">📡</span>Packet Analyzer</h1>
+
+  <!-- Capture Mode -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <h5 class="card-title">Capture Mode</h5>
+      <span class="badge bg-primary">{{ mode }}</span>
     </div>
+  </div>
 
-    <!-- Protocol Summary -->
-    <div class="card">
-      <div class="card-body">
-        <h5 class="card-title">Protocol Summary</h5>
-        <ul>
-          {% for proto, count in summary.items() %}
-            <li><a href="/?protocol={{ proto }}">{{ proto }}</a>: {{ count }}</li>
-          {% endfor %}
-          <li><a href="/?protocol=ALL"><strong>All Protocols</strong></a></li>
-        </ul>
-      </div>
+  <!-- Protocol Summary -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <h5 class="card-title">Protocol Summary</h5>
+      <ul>
+        {% for proto, count in summary.items() %}
+          <li><a href="/?protocol={{ proto }}">{{ proto }}</a>: {{ count }}</li>
+        {% endfor %}
+        <li><a href="/?protocol=ALL"><b>All Protocols</b></a></li>
+      </ul>
     </div>
+  </div>
 
-    <!-- Packets Table -->
-    <div class="card">
-      <div class="card-body">
-        <h5 class="card-title">
-          Packets 
-          {% if selected %}(Filtered: {{ selected }}){% endif %}
-        </h5>
-        <div class="table-responsive">
-          <table class="table table-bordered table-striped">
-            <thead>
+  <!-- Packets Table -->
+  <div class="card">
+    <div class="card-body">
+      <h5 class="card-title">
+        Packets {% if selected %}(Filtered: {{ selected }}){% endif %}
+      </h5>
+      <div class="table-responsive">
+        <table class="table table-striped table-bordered">
+          <thead class="table-dark">
+            <tr>
+              <th>ID</th>
+              <th>Source IP</th>
+              <th>Dest IP</th>
+              <th>Protocol</th>
+              <th>Summary</th>
+              <th>Timestamp (UTC)</th>
+              <th>Timestamp (IST)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for pkt in packets %}
               <tr>
-                <th>ID</th>
-                <th>Source IP</th>
-                <th>Dest IP</th>
-                <th>Protocol</th>
-                <th>Summary</th>
-                <th>Timestamp (UTC)</th>
-                <th>Timestamp (IST)</th>
+                <td>{{ pkt.id }}</td>
+                <td>{{ pkt.src_ip }}</td>
+                <td>{{ pkt.dst_ip }}</td>
+                <td>{{ pkt.protocol }}</td>
+                <td>{{ pkt.summary }}</td>
+                <td>{{ pkt.timestamp }}</td>
+                <td>
+                  {% if pkt.timestamp %}
+                    {{ pkt.timestamp|to_datetime|to_ist }}
+                  {% endif %}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {% for pkt in packets %}
-                <tr>
-                  <td>{{ pkt.id }}</td>
-                  <td>{{ pkt.src_ip }}</td>
-                  <td>{{ pkt.dst_ip }}</td>
-                  <td>{{ pkt.protocol }}</td>
-                  <td>{{ pkt.summary }}</td>
-                  <td>{{ pkt.timestamp }}</td>
-                  <td>
-                    {% if pkt.timestamp %}
-                      {{ pkt.timestamp | to_datetime | to_ist }}
-                    {% endif %}
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
+
+</div>
 </body>
 </html>
