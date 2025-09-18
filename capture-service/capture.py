@@ -1,11 +1,17 @@
 from scapy.all import sniff, rdpcap, get_if_list
+from scapy.utils import PcapReader
 import requests, time, os
 
+# Mode & file inputs
 MODE = os.getenv("MODE", "PCAP")        # MODE=LIVE or PCAP
-PCAP_FILE = os.getenv("PCAP_FILE", "sample-pcaps/dns.cap")  # fallback
+PCAP_FILE = os.getenv("PCAP_FILE", "sample-pcaps/dns.cap")  # take from env, fallback to dns.cap
+
+# Parser service endpoint
+#PARSER_URL = "http://parser-service:5001/parse"
 PARSER_URL = "http://127.0.0.1:5001/parse"
 
 def send_packet(pkt):
+    """Send packet summary + raw hex to parser service"""
     data = {"raw": pkt.summary(), "hex": bytes(pkt).hex()}
     try:
         requests.post(PARSER_URL, json=data)
@@ -13,6 +19,7 @@ def send_packet(pkt):
         print("Error sending to parser:", e)
 
 def get_default_iface():
+    """Auto-detect a usable network interface"""
     iface = os.getenv("IFACE")
     if iface:
         return iface
@@ -21,36 +28,34 @@ def get_default_iface():
             return candidate
     raise RuntimeError("No suitable network interface found. Available: " + str(get_if_list()))
 
-def read_pcap(file_path):
-    """Try reading PCAP, if it fails try PCAPNG"""
-    try:
-        return rdpcap(file_path)
-    except Exception as e:
-        print(f"⚠️ Failed to read with rdpcap: {e}")
-        try:
-            from scapy.utils import PcapNgReader
-            packets = []
-            with PcapNgReader(file_path) as pcapng:
-                for pkt in pcapng:
-                    packets.append(pkt)
-            return packets
-        except Exception as e2:
-            print(f"❌ Could not read {file_path} as PCAP or PCAPNG: {e2}")
-            return []
-
 if __name__ == "__main__":
-    time.sleep(3)
+    time.sleep(5)  # wait for other services to start
 
     if MODE.upper() == "LIVE":
+        # ---- Live sniffing ----
         iface = get_default_iface()
-        print(f"🔴 Sniffing live packets on {iface}... (press Ctrl+C to stop)")
-        sniff(iface=iface, prn=send_packet)  # no count, runs until stopped
+        print(f"🔴 Sniffing live packets on {iface}...")
+        sniff(iface=iface, prn=send_packet)  # no count limit → will run until stopped
+
     else:
+        # ---- PCAP replay ----
         print(f"🔵 Reading from PCAP file: {PCAP_FILE}")
-        packets = read_pcap(PCAP_FILE)
+        packets = []
+        try:
+            # Try rdpcap first
+            packets = rdpcap(PCAP_FILE)
+        except Exception as e:
+            print(f"⚠️ Failed to read with rdpcap: {e}")
+            try:
+                # Try PcapReader as fallback
+                with PcapReader(PCAP_FILE) as pcap_reader:
+                    packets = [pkt for pkt in pcap_reader]
+            except Exception as e2:
+                print(f"❌ Could not read {PCAP_FILE} as PCAP or PCAPNG: {e2}")
+                packets = []
+
         print(f"✅ Loaded {len(packets)} packets from {PCAP_FILE}")
-        for idx, pkt in enumerate(packets, start=1):
+        for pkt in packets:
             send_packet(pkt)
-            if idx % 100 == 0:
-                print(f"📦 Sent {idx} packets...")
+
         print("🎉 Finished sending all packets from PCAP.")
