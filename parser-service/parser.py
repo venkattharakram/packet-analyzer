@@ -6,7 +6,6 @@ from datetime import datetime
 app = Flask(__name__)
 
 # Persistor endpoint
-# PERSISTOR_URL = "http://persistor-service:5002/store"
 PERSISTOR_URL = "http://127.0.0.1:5002/store"
 
 @app.route("/parse", methods=["POST"])
@@ -17,15 +16,18 @@ def parse_packet():
         "dst_ip": "-",
         "src_port": None,
         "dst_port": None,
-        "protocol": "Others",   # default fallback
+        "protocol": "Others",   # Default fallback
         "dns_query": None,
-        "summary": pkt_data.get("raw", ""),   # keep scapy summary if available
+        "summary": pkt_data.get("raw", ""),   # scapy summary from capture
         "timestamp": datetime.utcnow().isoformat(),
-        "source": pkt_data.get("source", "LIVE")  # <--- LIVE or PCAP comes from capture.py
+        "source": pkt_data.get("source", "LIVE")
     }
 
     try:
         scapy_pkt = Ether(bytes.fromhex(pkt_data["hex"]))
+
+        # Always add scapy summary (stronger guarantee)
+        structured["summary"] = scapy_pkt.summary()
 
         # ---- ARP ----
         if scapy_pkt.haslayer(ARP):
@@ -73,10 +75,6 @@ def parse_packet():
 
             else:
                 structured["protocol"] = "IPv6"
-
-        # Always keep scapy’s raw summary too
-        if not structured["summary"]:
-            structured["summary"] = scapy_pkt.summary()
 
     except Exception as e:
         print("Parse error:", e)
