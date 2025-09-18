@@ -6,33 +6,36 @@ from datetime import datetime
 app = Flask(__name__)
 
 # Persistor endpoint
+# PERSISTOR_URL = "http://persistor-service:5002/store"
 PERSISTOR_URL = "http://127.0.0.1:5002/store"
 
 @app.route("/parse", methods=["POST"])
 def parse_packet():
     pkt_data = request.json
     structured = {
-        "src_ip": "-",
-        "dst_ip": "-",
+        "src_ip": None,
+        "dst_ip": None,
         "src_port": None,
         "dst_port": None,
-        "protocol": "Others",
+        "protocol": "Others",    # Default fallback (never Unknown)
         "dns_query": None,
-        "summary": pkt_data.get("raw", "N/A"),
-        "timestamp": datetime.utcnow().isoformat(),
+        # ✅ keep scapy summary string (from capture.py "raw")
+        "summary": pkt_data.get("raw", "No summary"),
+        "timestamp": datetime.utcnow().isoformat(),  # store UTC timestamp
+        # ✅ capture mode: will be "LIVE" or "PCAP"
         "source": pkt_data.get("source", "LIVE")
     }
 
     try:
         scapy_pkt = Ether(bytes.fromhex(pkt_data["hex"]))
 
-        # ARP
+        # ---- ARP ----
         if scapy_pkt.haslayer(ARP):
             structured["src_ip"] = scapy_pkt[ARP].psrc
             structured["dst_ip"] = scapy_pkt[ARP].pdst
             structured["protocol"] = "ARP"
 
-        # IPv4
+        # ---- IPv4 ----
         elif scapy_pkt.haslayer(IP):
             structured["src_ip"] = scapy_pkt[IP].src
             structured["dst_ip"] = scapy_pkt[IP].dst
@@ -56,7 +59,7 @@ def parse_packet():
             elif scapy_pkt.haslayer(ICMP):
                 structured["protocol"] = "ICMP"
 
-        # IPv6
+        # ---- IPv6 ----
         elif scapy_pkt.haslayer(IPv6):
             structured["src_ip"] = scapy_pkt[IPv6].src
             structured["dst_ip"] = scapy_pkt[IPv6].dst
@@ -79,10 +82,16 @@ def parse_packet():
             else:
                 structured["protocol"] = "IPv6"
 
+        # ✅ Ensure no "Unknown" leaks out
+        if structured["protocol"] == "Unknown":
+            structured["protocol"] = "Others"
+
     except Exception as e:
         print("Parse error:", e)
+        if not structured["summary"]:
+            structured["summary"] = f"Parse error: {e}"
 
-    # Send structured packet to persistor
+    # ---- Send structured packet to persistor ----
     try:
         requests.post(PERSISTOR_URL, json=structured)
     except Exception as e:
