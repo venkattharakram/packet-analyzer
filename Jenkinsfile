@@ -1,7 +1,7 @@
 pipeline {
     agent any
     environment {
-        DOCKER_REGISTRY = 'yourdockerhubusername'
+        DOCKER_REGISTRY = 'sumanthmurari'
     }
     stages {
         stage('Checkout') {
