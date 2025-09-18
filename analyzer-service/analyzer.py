@@ -88,6 +88,42 @@ def filter_by_protocol():
     logging.info(f"✅ Retrieved {len(packets)} packets for protocol {protocol}")
     return jsonify(packets)
 
+# ✅ New: All packets grouped by protocol
+@app.route("/all_protocols", methods=["GET"])
+def all_protocols():
+    """
+    Returns packets grouped by protocol:
+    {
+      "TCP": [...],
+      "UDP": [...],
+      "ICMP": [...],
+      "ARP": [...],
+      "Others": [...]
+    }
+    """
+    query = "SELECT id, src_ip, dst_ip, protocol, summary, timestamp FROM packets ORDER BY id DESC LIMIT 500"
+    logging.debug(f"Running query: {query}")
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(query)
+    rows = cur.fetchall()
+    conn.close()
+
+    grouped = {}
+    for r in rows:
+        pkt = {
+            "id": r[0],
+            "src_ip": r[1],
+            "dst_ip": r[2],
+            "protocol": r[3],
+            "summary": r[4],
+            "timestamp": r[5].isoformat() if r[5] else None
+        }
+        grouped.setdefault(pkt["protocol"], []).append(pkt)
+
+    logging.info(f"✅ Grouped {len(rows)} packets by protocol")
+    return jsonify(grouped)
+
 if __name__ == "__main__":
     logging.info("🚀 Starting Analyzer service on port 5003")
     app.run(host="0.0.0.0", port=5003)
