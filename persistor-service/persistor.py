@@ -54,6 +54,4 @@ def store_packet():
     return jsonify({"status": "stored"})
 
 if __name__ == "__main__":
-    logging.info("🚀 Starting Persistor service on port 5002")
     app.run(host="0.0.0.0", port=5002)
-

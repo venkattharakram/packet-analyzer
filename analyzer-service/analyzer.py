@@ -1,5 +1,3 @@
-import os
-import psycopg2
 from flask import Flask, jsonify, request
 import psycopg2, logging
 
@@ -7,117 +5,117 @@ logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(m
 app = Flask(__name__)
 
 def get_connection():
-    try:
-        conn = psycopg2.connect(
-            dbname="packets",
-            user="admin",
-            password="secret",
-            host="127.0.0.1",
-            port=5432
-        )
-        logging.info("✅ Connected to PostgreSQL database")
-        return conn
-    except Exception as e:
-        logging.error(f"❌ Database connection failed: {e}")
-        raise
+    return psycopg2.connect(
+        dbname="packets",
+        user="admin",
+        password="secret",
+        host="127.0.0.1",
+        port=5432
+    )
 
-# ✅ Protocol summary for UI
+# ✅ Protocol summary (grouped by protocol & source)
 @app.route("/protocol_summary", methods=["GET"])
 def protocol_summary():
-    query = "SELECT protocol, COUNT(*) FROM packets GROUP BY protocol"
-    logging.debug(f"Running query: {query}")
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS analyzed_packets (
-            id SERIAL PRIMARY KEY,
-            src_ip VARCHAR(50),
-            dst_ip VARCHAR(50),
-            protocol VARCHAR(20),
-            summary TEXT,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        """
-    )
-    conn.commit()
-    cur.close()
-    conn.close()
-    # Convert to dict for safe JSON output
-    summary_dict = {row[0]: row[1] for row in rows}
-    logging.info(f"✅ Retrieved protocol summary: {summary_dict}")
-    return jsonify(summary_dict)
-
-# ✅ Get latest packets
-@app.route("/packets", methods=["GET"])
-def get_packets():
-    query = "SELECT id, src_ip, dst_ip, protocol, summary FROM packets ORDER BY id DESC LIMIT 50"
-    logging.debug(f"Running query: {query}")
+    query = "SELECT protocol, source, COUNT(*) FROM packets GROUP BY protocol, source"
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(query)
     rows = cur.fetchall()
-    cur.close()
     conn.close()
 
-    packets = [
-        {"id": r[0], "src_ip": r[1], "dst_ip": r[2], "protocol": r[3], "summary": r[4]}
-        for r in rows
-    ]
-    return jsonify(packets)
+    summary = {}
+    for protocol, source, count in rows:
+        if protocol not in summary:
+            summary[protocol] = {}
+        summary[protocol][source] = count
+    return jsonify(summary)
 
+# ✅ Get packets (optionally by source)
+@app.route("/packets", methods=["GET"])
+def get_packets():
+    source = request.args.get("source")
+    query = "SELECT id, src_ip, dst_ip, protocol, summary, timestamp, source FROM packets"
+    if source:
+        query += " WHERE source=%s ORDER BY id DESC LIMIT 50"
+    else:
+        query += " ORDER BY id DESC LIMIT 50"
 
-@app.route("/protocol_summary", methods=["GET"])
-def protocol_summary():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT protocol, COUNT(*) FROM analyzed_packets GROUP BY protocol;")
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
-    return jsonify({row[0]: row[1] for row in rows})
-
-
-@app.route("/filter", methods=["GET"])
-def filter_packets():
-    protocol = request.args.get("protocol")
-    if not protocol:
-        return jsonify({"error": "Protocol parameter is required"}), 400
-
-    query = "SELECT id, src_ip, dst_ip, protocol, summary FROM packets WHERE protocol=%s ORDER BY id DESC LIMIT 50"
-    logging.debug(f"Running query: {query} with protocol={protocol}")
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT id, src_ip, dst_ip, protocol, summary, timestamp
-        FROM analyzed_packets
-        WHERE protocol = %s;
-        """,
-        (protocol,),
-    )
+    if source:
+        cur.execute(query, (source,))
+    else:
+        cur.execute(query)
     rows = cur.fetchall()
-    cur.close()
     conn.close()
+
     packets = [
-        {"id": r[0], "src_ip": r[1], "dst_ip": r[2], "protocol": r[3], "summary": r[4]}
+        {
+            "id": r[0],
+            "src_ip": r[1],
+            "dst_ip": r[2],
+            "protocol": r[3],
+            "summary": r[4],
+            "timestamp": r[5].isoformat() if r[5] else None,
+            "source": r[6]
+        }
         for r in rows
     ]
     return jsonify(packets)
 
+# ✅ Filter packets by protocol
+@app.route("/filter", methods=["GET"])
+def filter_by_protocol():
+    protocol = request.args.get("protocol")
+    if not protocol:
+        return jsonify([])
 
-@app.route("/health")
-def health():
-    return "OK", 200
+    query = """SELECT id, src_ip, dst_ip, protocol, summary, timestamp, source
+               FROM packets WHERE protocol=%s ORDER BY id DESC LIMIT 50"""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(query, (protocol,))
+    rows = cur.fetchall()
+    conn.close()
 
+    packets = [
+        {
+            "id": r[0],
+            "src_ip": r[1],
+            "dst_ip": r[2],
+            "protocol": r[3],
+            "summary": r[4],
+            "timestamp": r[5].isoformat() if r[5] else None,
+            "source": r[6]
+        }
+        for r in rows
+    ]
+    return jsonify(packets)
 
-# -------------------------
-# Start background processing
-# -------------------------
-ensure_analyzed_table()
-threading.Thread(target=process_packets_loop, daemon=True).start()
+# ✅ All protocols (detailed list, not counts)
+@app.route("/all_protocols", methods=["GET"])
+def all_protocols():
+    query = """SELECT id, src_ip, dst_ip, protocol, summary, timestamp, source
+               FROM packets ORDER BY id DESC LIMIT 200"""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(query)
+    rows = cur.fetchall()
+    conn.close()
 
+    packets = [
+        {
+            "id": r[0],
+            "src_ip": r[1],
+            "dst_ip": r[2],
+            "protocol": r[3],
+            "summary": r[4],
+            "timestamp": r[5].isoformat() if r[5] else None,
+            "source": r[6]
+        }
+        for r in rows
+    ]
+    return jsonify(packets)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5003)
-

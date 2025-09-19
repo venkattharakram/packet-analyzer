@@ -47,9 +47,32 @@ def parse_packet():
             elif scapy_pkt.haslayer(UDP):
                 structured["src_port"] = scapy_pkt[UDP].sport
                 structured["dst_port"] = scapy_pkt[UDP].dport
-                structured["protocol"] = "DNS" if 53 in [scapy_pkt[UDP].sport, scapy_pkt[UDP].dport] else "UDP"
+                structured["protocol"] = (
+                    "DNS" if 53 in [scapy_pkt[UDP].sport, scapy_pkt[UDP].dport] else "UDP"
+                )
                 if scapy_pkt.haslayer(DNSQR):
-                    structured["dns_query"] = scapy_pkt[DNSQR].qname.decode()
+                    structured["dns_query"] = scapy_pkt[DNSQR].qname.decode(errors="ignore")
+
+            elif scapy_pkt.haslayer(ICMP):
+                structured["protocol"] = "ICMP"
+
+        # ---- IPv6 ----
+        elif scapy_pkt.haslayer(IPv6):
+            structured["src_ip"] = scapy_pkt[IPv6].src
+            structured["dst_ip"] = scapy_pkt[IPv6].dst
+
+            if scapy_pkt.haslayer(TCP):
+                structured["src_port"] = scapy_pkt[TCP].sport
+                structured["dst_port"] = scapy_pkt[TCP].dport
+                structured["protocol"] = "TCP"
+
+            elif scapy_pkt.haslayer(UDP):
+                structured["src_port"] = scapy_pkt[UDP].sport
+                structured["dst_port"] = scapy_pkt[UDP].dport
+                structured["protocol"] = (
+                    "DNS" if 53 in [scapy_pkt[UDP].sport, scapy_pkt[UDP].dport] else "UDP"
+                )
+
             elif scapy_pkt.haslayer(ICMP):
                 structured["protocol"] = "ICMP"
 
@@ -57,7 +80,7 @@ def parse_packet():
                 structured["protocol"] = "IPv6"
 
     except Exception as e:
-        logging.error(f"Parse error: {e}")
+        print("Parse error:", e)
 
     # ---- Send structured packet to persistor ----
     try:
@@ -68,5 +91,4 @@ def parse_packet():
     return jsonify({"status": "parsed"})
 
 if __name__ == "__main__":
-    logging.info("🚀 Starting Parser service on port 5001")
     app.run(host="0.0.0.0", port=5001)
