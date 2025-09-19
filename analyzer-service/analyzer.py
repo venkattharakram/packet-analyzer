@@ -6,10 +6,10 @@ app = Flask(__name__)
 
 def get_connection():
     return psycopg2.connect(
-        dbname="packets",
-        user="admin",
-        password="secret",
-        host="127.0.0.1",
+        dbname="packetdb",
+        user="packetuser",
+        password="packetpass",
+        host="packet-db",
         port=5432
     )
 

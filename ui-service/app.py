@@ -5,6 +5,8 @@ import pytz
 from flask_cors import CORS
 
 app = Flask(__name__)
+ANALYZER_URL = "http://analyzer-service:5003"
+#ANALYZER_URL = "http://127.0.0.1:5003"
 CORS(app)
 
 ANALYZER_URL = "http://127.0.0.1:5003"

@@ -4,6 +4,7 @@ from scapy.all import Ether, IP, IPv6, TCP, UDP, DNS, DNSQR, ICMP, ARP
 from datetime import datetime
 
 app = Flask(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 # Persistor endpoint
 PERSISTOR_URL = "http://127.0.0.1:5002/store"

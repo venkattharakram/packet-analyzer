@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 import psycopg2, time, logging
 
 app = Flask(__name__)
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 @app.route("/health", methods=["GET"])
 def health():
@@ -11,10 +11,10 @@ def health():
 time.sleep(3)  # wait for DB
 
 conn = psycopg2.connect(
-    dbname="packets",
-    user="admin",
-    password="secret",
-    host="localhost",
+    dbname="packetdb",
+    user="packetuser",
+    password="packetpass",
+    host="packet-db",
     port=5432
 )
 cur = conn.cursor()
