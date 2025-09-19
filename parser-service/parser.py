@@ -2,16 +2,34 @@ from flask import Flask, request, jsonify
 import requests
 from scapy.all import Ether, IP, IPv6, TCP, UDP, DNS, DNSQR, ICMP, ARP
 from datetime import datetime
+import logging
+import time 
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 # Persistor endpoint
-PERSISTOR_URL = "http://127.0.0.1:5002/store"
+#PERSISTOR_URL = "http://127.0.0.1:5002/store"
+PERSISTOR_URL = "http://persistor-service:5002/store"
+
 
 @app.route("/health", methods=["GET"])
 def health():
     return "OK", 200
+
+# Optional retry delay for persistor
+def send_to_persistor(data, retries=5, delay=2):
+    for attempt in range(retries):
+        try:
+            resp = requests.post(PERSISTOR_URL, json=data, timeout=5)
+            if resp.status_code == 200:
+                logging.info(f"✅ Packet sent to persistor: {data.get('protocol')}")
+                return True
+        except requests.exceptions.RequestException as e:
+            logging.warning(f"Attempt {attempt+1}/{retries} failed: {e}")
+        time.sleep(delay)
+    logging.error(f"❌ Failed to send packet after {retries} attempts")
+    return False
 
 @app.route("/parse", methods=["POST"])
 def parse_packet():

@@ -11,6 +11,11 @@ def health():
 time.sleep(3)  # wait for DB
 
 # Connect to Postgres (hardcoded)
+#conn = psycopg2.connect("dbname=packetdb user=packetuser password=packetpass host=db port=5432")
+#cur = conn.cursor()
+
+
+# Connect to Postgres (hardcoded)
 try:
     conn = psycopg2.connect("dbname=packetdb user=packetuser password=packetpass host=db port=5432")
     cur = conn.cursor()
@@ -20,25 +25,24 @@ except Exception as e:
     sys.exit(1)
 
 
-def init_db():
-    """Ensure schema exists (only run once)."""
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS packets (
-        id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-        src_ip VARCHAR(50),
-        dst_ip VARCHAR(50),
-        protocol VARCHAR(20),
-        src_port VARCHAR(10),
-        dst_port VARCHAR(10),
-        dns_query TEXT,
-        summary TEXT,
-        timestamp TIMESTAMP,
-        source VARCHAR(10) DEFAULT 'LIVE'
-    );
-    """)
-    conn.commit()
-    logging.info("Ensured 'packets' table exists ✅")
 
+
+# Ensure schema
+cur.execute("""
+CREATE TABLE IF NOT EXISTS packets (
+    id SERIAL PRIMARY KEY,
+    src_ip VARCHAR(50),
+    dst_ip VARCHAR(50),
+    protocol VARCHAR(20),
+    src_port VARCHAR(10),
+    dst_port VARCHAR(10),
+    dns_query TEXT,
+    summary TEXT,
+    timestamp TIMESTAMP,
+    source VARCHAR(10) DEFAULT 'LIVE'
+);
+""")
+conn.commit()
 
 @app.route("/store", methods=["POST"])
 def store_packet():
@@ -61,9 +65,5 @@ def store_packet():
     logging.info(f"Stored packet {pkt.get('protocol')} {pkt.get('src_ip')}->{pkt.get('dst_ip')}")
     return jsonify({"status": "stored"})
 
-
 if __name__ == "__main__":
-    # Run schema creation only once (not in every Gunicorn worker)
-    init_db()
     app.run(host="0.0.0.0", port=5002)
-
