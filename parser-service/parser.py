@@ -1,3 +1,4 @@
+import logging
 from flask import Flask, request, jsonify
 import requests
 from scapy.all import Ether, IP, IPv6, TCP, UDP, DNS, DNSQR, ICMP, ARP
