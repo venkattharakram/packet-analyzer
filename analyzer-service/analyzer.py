@@ -1,26 +1,32 @@
 import os
 import psycopg2
 from flask import Flask, jsonify, request
-import threading
-import time
-from datetime import datetime
+import psycopg2, logging
 
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
 app = Flask(__name__)
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", "postgresql://packetuser:packetpass@db:5432/packetdb"
-)
+def get_connection():
+    try:
+        conn = psycopg2.connect(
+            dbname="packets",
+            user="admin",
+            password="secret",
+            host="127.0.0.1",
+            port=5432
+        )
+        logging.info("✅ Connected to PostgreSQL database")
+        return conn
+    except Exception as e:
+        logging.error(f"❌ Database connection failed: {e}")
+        raise
 
-# -------------------------
-# Database utilities
-# -------------------------
-def get_db_connection():
-    return psycopg2.connect(DATABASE_URL)
-
-
-def ensure_analyzed_table():
-    """Creates the analyzed_packets table if it does not exist."""
-    conn = get_db_connection()
+# ✅ Protocol summary for UI
+@app.route("/protocol_summary", methods=["GET"])
+def protocol_summary():
+    query = "SELECT protocol, COUNT(*) FROM packets GROUP BY protocol"
+    logging.debug(f"Running query: {query}")
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute(
         """
@@ -37,70 +43,26 @@ def ensure_analyzed_table():
     conn.commit()
     cur.close()
     conn.close()
+    # Convert to dict for safe JSON output
+    summary_dict = {row[0]: row[1] for row in rows}
+    logging.info(f"✅ Retrieved protocol summary: {summary_dict}")
+    return jsonify(summary_dict)
 
-
-# -------------------------
-# Background analyzer loop
-# -------------------------
-def process_packets_loop(interval=1):
-    """Continuously process new packets from the packets table."""
-    while True:
-        try:
-            conn = get_db_connection()
-            cur = conn.cursor()
-            # Fetch unprocessed packets
-            cur.execute(
-                """
-                SELECT id, src_ip, dst_ip, protocol, summary
-                FROM packets
-                WHERE id NOT IN (SELECT id FROM analyzed_packets)
-                ORDER BY id ASC
-                LIMIT 50;
-                """
-            )
-            rows = cur.fetchall()
-            for row in rows:
-                cur.execute(
-                    """
-                    INSERT INTO analyzed_packets (id, src_ip, dst_ip, protocol, summary, timestamp)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                    """,
-                    (*row, datetime.utcnow()),
-                )
-            conn.commit()
-            cur.close()
-            conn.close()
-            if rows:
-                print(f"✅ Processed {len(rows)} packet(s)")
-        except Exception as e:
-            print(f"[Analyzer Loop Error] {e}")
-        time.sleep(interval)
-
-
-# -------------------------
-# Flask API endpoints
-# -------------------------
+# ✅ Get latest packets
 @app.route("/packets", methods=["GET"])
 def get_packets():
-    conn = get_db_connection()
+    query = "SELECT id, src_ip, dst_ip, protocol, summary FROM packets ORDER BY id DESC LIMIT 50"
+    logging.debug(f"Running query: {query}")
+    conn = get_connection()
     cur = conn.cursor()
-    cur.execute(
-        "SELECT id, src_ip, dst_ip, protocol, summary, timestamp FROM analyzed_packets;"
-    )
+    cur.execute(query)
     rows = cur.fetchall()
     cur.close()
     conn.close()
 
     packets = [
-        {
-            "id": row[0],
-            "src_ip": row[1],
-            "dst_ip": row[2],
-            "protocol": row[3],
-            "summary": row[4],
-            "timestamp": row[5].isoformat() if row[5] else None,
-        }
-        for row in rows
+        {"id": r[0], "src_ip": r[1], "dst_ip": r[2], "protocol": r[3], "summary": r[4]}
+        for r in rows
     ]
     return jsonify(packets)
 
@@ -122,7 +84,9 @@ def filter_packets():
     if not protocol:
         return jsonify({"error": "Protocol parameter is required"}), 400
 
-    conn = get_db_connection()
+    query = "SELECT id, src_ip, dst_ip, protocol, summary FROM packets WHERE protocol=%s ORDER BY id DESC LIMIT 50"
+    logging.debug(f"Running query: {query} with protocol={protocol}")
+    conn = get_connection()
     cur = conn.cursor()
     cur.execute(
         """
@@ -135,17 +99,9 @@ def filter_packets():
     rows = cur.fetchall()
     cur.close()
     conn.close()
-
     packets = [
-        {
-            "id": row[0],
-            "src_ip": row[1],
-            "dst_ip": row[2],
-            "protocol": row[3],
-            "summary": row[4],
-            "timestamp": row[5].isoformat() if row[5] else None,
-        }
-        for row in rows
+        {"id": r[0], "src_ip": r[1], "dst_ip": r[2], "protocol": r[3], "summary": r[4]}
+        for r in rows
     ]
     return jsonify(packets)
 
