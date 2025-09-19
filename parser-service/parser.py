@@ -8,6 +8,10 @@ app = Flask(__name__)
 # Persistor endpoint
 PERSISTOR_URL = "http://127.0.0.1:5002/store"
 
+@app.route("/health", methods=["GET"])
+def health():
+    return "OK", 200
+
 @app.route("/parse", methods=["POST"])
 def parse_packet():
     pkt_data = request.json

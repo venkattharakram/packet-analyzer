@@ -4,6 +4,10 @@ import psycopg2, time, logging
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
+@app.route("/health", methods=["GET"])
+def health():
+    return "OK", 200
+
 time.sleep(3)  # wait for DB
 
 conn = psycopg2.connect(
