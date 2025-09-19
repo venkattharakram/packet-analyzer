@@ -11,10 +11,10 @@ def health():
 time.sleep(3)  # wait for DB
 
 conn = psycopg2.connect(
-    dbname="packetdb",
-    user="packetuser",
-    password="packetpass",
-    host="packet-db",
+    dbname="packets",
+    user="admin",
+    password="secret",
+    host="localhost",
     port=5432
 )
 cur = conn.cursor()
