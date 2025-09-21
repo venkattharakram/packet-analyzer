@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
-import psycopg2, time, logging, sys
+import psycopg2,logging, sys, time
+from db_config import get_connection  # ✅ use central DB config
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -8,11 +9,12 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 def health():
     return "OK", 200
 
-time.sleep(3)  # wait for DB
+# Wait a bit for DB container to be ready
+time.sleep(3)
 
-# Connect to Postgres (hardcoded)
+# ✅ Connect to DB using shared config
 try:
-    conn = psycopg2.connect("dbname=packetdb user=packetuser password=packetpass host=db port=5432")
+    conn = get_connection("default")   # uses packetdb / packetuser by default
     cur = conn.cursor()
     logging.info("Connected to Postgres ✅")
 except Exception as e:
@@ -63,7 +65,6 @@ def store_packet():
 
 
 if __name__ == "__main__":
-    # Run schema creation only once (not in every Gunicorn worker)
+    # Run schema creation only once
     init_db()
     app.run(host="0.0.0.0", port=5002)
-
