@@ -1,23 +1,15 @@
 from flask import Flask, jsonify, request
-import psycopg2, logging
+import psycopg2,logging
+from db_config import get_connection  # ✅ Import from your shared config
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
 app = Flask(__name__)
-
-def get_connection():
-    return psycopg2.connect(
-        dbname="packetdb",
-        user="packetuser",
-        password="packetpass",
-        host="packet-db",
-        port=5432
-    )
 
 # ✅ Protocol summary (grouped by protocol & source)
 @app.route("/protocol_summary", methods=["GET"])
 def protocol_summary():
     query = "SELECT protocol, source, COUNT(*) FROM packets GROUP BY protocol, source"
-    conn = get_connection()
+    conn = get_connection("default")   # uses packetdb / packetuser by default
     cur = conn.cursor()
     cur.execute(query)
     rows = cur.fetchall()
@@ -40,7 +32,7 @@ def get_packets():
     else:
         query += " ORDER BY id DESC LIMIT 50"
 
-    conn = get_connection()
+    conn = get_connection("default")
     cur = conn.cursor()
     if source:
         cur.execute(query, (source,))
@@ -72,7 +64,7 @@ def filter_by_protocol():
 
     query = """SELECT id, src_ip, dst_ip, protocol, summary, timestamp, source
                FROM packets WHERE protocol=%s ORDER BY id DESC LIMIT 50"""
-    conn = get_connection()
+    conn = get_connection("default")
     cur = conn.cursor()
     cur.execute(query, (protocol,))
     rows = cur.fetchall()
@@ -97,7 +89,7 @@ def filter_by_protocol():
 def all_protocols():
     query = """SELECT id, src_ip, dst_ip, protocol, summary, timestamp, source
                FROM packets ORDER BY id DESC LIMIT 200"""
-    conn = get_connection()
+    conn = get_connection("default")
     cur = conn.cursor()
     cur.execute(query)
     rows = cur.fetchall()
