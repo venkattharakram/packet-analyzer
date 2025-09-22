@@ -6,9 +6,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
-COPY . /app
-
-
+# Copy service code explicitly
+COPY persistor.py /app/persistor.py
 # Copy shared DB config from parent folder
 COPY ../db_config.py /app/db_config.py
 
