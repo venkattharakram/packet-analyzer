@@ -10,10 +10,9 @@ CORS(app)
 
 # Analyzer + Capture endpoints
 ANALYZER_URL = "http://analyzer-service:5003"
-CAPTURE_URL = "http://172.31.39.213:5004"
+CORS(app)
 
-# Setup logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+CAPTURE_URL = "http://127.0.0.1:5004"   # 👈 capture service endpoint
 
 # -------------------------------------------------------------------
 # Filters for datetime formatting
@@ -25,6 +24,7 @@ def to_datetime(value):
     except Exception:
         return None
 
+
 @app.template_filter('to_ist')
 def to_ist(value):
     try:
@@ -33,34 +33,26 @@ def to_ist(value):
     except Exception:
         return value
 
-# -------------------------------------------------------------------
-# Start/Stop Sniffing APIs
-# -------------------------------------------------------------------
+# --- NEW: Start Sniffing ---
 @app.route("/api/start_sniffing", methods=["POST"])
 def start_sniffing():
     try:
-        logging.info("📡 Forwarding start_sniffing request to capture-service...")
         res = requests.post(f"{CAPTURE_URL}/start_sniffing")
-        logging.info(f"✅ Capture-service response: {res.json()}")
         return jsonify({"status": "started", "response": res.json()})
     except Exception as e:
         logging.error(f"❌ Failed to start sniffing: {e}")
         return jsonify({"error": str(e)}), 500
 
+# --- NEW: Stop Sniffing ---
 @app.route("/api/stop_sniffing", methods=["POST"])
 def stop_sniffing():
     try:
-        logging.info("🛑 Forwarding stop_sniffing request to capture-service...")
         res = requests.post(f"{CAPTURE_URL}/stop_sniffing")
-        logging.info(f"✅ Capture-service response: {res.json()}")
         return jsonify({"status": "stopped", "response": res.json()})
     except Exception as e:
         logging.error(f"❌ Failed to stop sniffing: {e}")
         return jsonify({"error": str(e)}), 500
 
-# -------------------------------------------------------------------
-# UI Route
-# -------------------------------------------------------------------
 @app.route("/")
 def index():
     protocol = request.args.get("protocol")
@@ -76,12 +68,10 @@ def index():
         else:
             packets = requests.get(f"{ANALYZER_URL}/packets", params=params).json()
     except Exception as e:
-        logging.error(f"UI Error fetching analyzer data: {e}")
+        print("UI Error:", e)
     return render_template("index.html", packets=packets, summary=summary, selected=protocol, selected_source=source)
 
-# -------------------------------------------------------------------
-# JSON APIs
-# -------------------------------------------------------------------
+# --- JSON APIs ---
 @app.route("/api/packets", methods=["GET"])
 def api_packets():
     try:
@@ -91,6 +81,7 @@ def api_packets():
         logging.error(f"Error in /api/packets: {e}")
         return jsonify({"error": str(e)}), 500
 
+
 @app.route("/api/summary", methods=["GET"])
 def api_summary():
     try:
@@ -99,6 +90,7 @@ def api_summary():
     except Exception as e:
         logging.error(f"Error in /api/summary: {e}")
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/filter", methods=["GET"])
 def api_filter():
@@ -116,6 +108,7 @@ def api_filter():
         logging.error(f"Error in /api/filter: {e}")
         return jsonify({"error": str(e)}), 500
 
+
 @app.route("/api/all_protocols", methods=["GET"])
 def api_all_protocols():
     try:
@@ -125,15 +118,9 @@ def api_all_protocols():
         logging.error(f"Error in /api/all_protocols: {e}")
         return jsonify({"error": str(e)}), 500
 
-# -------------------------------------------------------------------
-# Health Check
-# -------------------------------------------------------------------
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
+
 @app.route("/health")
 def health():
     return "OK", 200
-
-# -------------------------------------------------------------------
-# Entrypoint
-# -------------------------------------------------------------------
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)

@@ -1,20 +1,20 @@
 from flask import Flask, request, jsonify
-import psycopg2, logging, sys, time
-from db_config import get_connection  # ✅ central DB config
+import psycopg2, time, logging, sys
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+DB_CONN = "dbname=packetdb user=packetuser password=packetpass host=db port=5432"
 
 @app.route("/health", methods=["GET"])
 def health():
     return "OK", 200
 
-# Wait a bit for DB container to be ready
-time.sleep(3)
+time.sleep(3)  # wait for DB
 
-# ✅ Connect to DB using shared config
+# Connect to Postgres (hardcoded)
 try:
-    conn = get_connection("default")   # packetdb / packetuser
+    conn = psycopg2.connect("dbname=packetdb user=packetuser password=packetpass host=db port=5432")
     cur = conn.cursor()
     logging.info("Connected to Postgres ✅")
 except Exception as e:
@@ -23,63 +23,48 @@ except Exception as e:
 
 
 def init_db():
-    """Ensure schema & columns exist (idempotent)."""
+    """Ensure schema exists (only run once)."""
     cur.execute("""
     CREATE TABLE IF NOT EXISTS packets (
         id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
         src_ip VARCHAR(50),
         dst_ip VARCHAR(50),
         protocol VARCHAR(20),
+        src_port VARCHAR(10),
+        dst_port VARCHAR(10),
+        dns_query TEXT,
         summary TEXT,
-        timestamp TIMESTAMP
+        timestamp TIMESTAMP,
+        source VARCHAR(10) DEFAULT 'LIVE'
     );
     """)
-
-    # Ensure all required columns exist
-    safe_alters = [
-        "ALTER TABLE packets ADD COLUMN IF NOT EXISTS src_port VARCHAR(10);",
-        "ALTER TABLE packets ADD COLUMN IF NOT EXISTS dst_port VARCHAR(10);",
-        "ALTER TABLE packets ADD COLUMN IF NOT EXISTS dns_query TEXT;",
-        "ALTER TABLE packets ADD COLUMN IF NOT EXISTS source VARCHAR(10) DEFAULT 'LIVE';"
-    ]
-    for alter in safe_alters:
-        try:
-            cur.execute(alter)
-        except Exception as e:
-            logging.warning(f"Skip alter: {e}")
-
     conn.commit()
-    logging.info("✅ Ensured 'packets' schema is up to date")
+    logging.info("Ensured 'packets' table exists ✅")
 
 
 @app.route("/store", methods=["POST"])
 def store_packet():
     pkt = request.json
-    try:
-        cur.execute("""
-            INSERT INTO packets 
-                (src_ip, dst_ip, protocol, src_port, dst_port, dns_query, summary, timestamp, source)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
-        """, (
-            pkt.get("src_ip"),
-            pkt.get("dst_ip"),
-            pkt.get("protocol"),
-            pkt.get("src_port"),
-            pkt.get("dst_port"),
-            pkt.get("dns_query"),
-            pkt.get("summary"),
-            pkt.get("timestamp"),
-            pkt.get("source", "LIVE")
-        ))
-        conn.commit()
-        logging.info(f"Stored packet {pkt.get('protocol')} {pkt.get('src_ip')}->{pkt.get('dst_ip')}")
-        return jsonify({"status": "stored"})
-    except Exception as e:
-        conn.rollback()
-        logging.error(f"❌ Failed to insert packet: {e}")
-        return jsonify({"status": "error", "error": str(e)}), 500
+    cur.execute("""
+        INSERT INTO packets (src_ip, dst_ip, protocol, src_port, dst_port, dns_query, summary, timestamp, source)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+    """, (
+        pkt.get("src_ip"),
+        pkt.get("dst_ip"),
+        pkt.get("protocol"),
+        pkt.get("src_port"),
+        pkt.get("dst_port"),
+        pkt.get("dns_query"),
+        pkt.get("summary"),
+        pkt.get("timestamp"),
+        pkt.get("source", "LIVE")
+    ))
+    conn.commit()
+    logging.info(f"Stored packet {pkt.get('protocol')} {pkt.get('src_ip')}->{pkt.get('dst_ip')}")
+    return jsonify({"status": "stored"})
 
 
 if __name__ == "__main__":
-    init_db()  # auto-fix schema at startup
+    # Run schema creation only once (not in every Gunicorn worker)
+    init_db()
     app.run(host="0.0.0.0", port=5002)
