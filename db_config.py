@@ -12,8 +12,8 @@ def detect_host():
         return db_host
 
     try:
-        socket.gethostbyname("packets-db")
-        return "packets-db"
+        socket.gethostbyname("db")
+        return "db"
     except socket.gaierror:
         return "localhost"
 
