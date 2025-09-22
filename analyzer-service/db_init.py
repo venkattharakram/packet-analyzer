@@ -11,7 +11,7 @@ def init_db():
 
     # Create the table only once
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS analyzed_packets (
+        CREATE TABLE IF NOT EXISTS packets (
             id SERIAL PRIMARY KEY,
             src_ip VARCHAR(50),
             dst_ip VARCHAR(50),
