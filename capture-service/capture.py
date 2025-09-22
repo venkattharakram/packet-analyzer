@@ -18,7 +18,8 @@ def send_packet(pkt, source="LIVE"):
         "source": source
     }
     try:
-        requests.post(PARSER_URL, json=data)
+        resp = requests.post(PARSER_URL, json=data, timeout=5)
+        print(f"Sent to parser → status {resp.status_code}")
     except Exception as e:
         print("Error sending to parser:", e)
 
