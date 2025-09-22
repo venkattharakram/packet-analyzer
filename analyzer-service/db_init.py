@@ -12,14 +12,17 @@ def init_db():
     # Create the table only once
     cur.execute("""
         CREATE TABLE IF NOT EXISTS packets (
-            id SERIAL PRIMARY KEY,
-            src_ip VARCHAR(50),
-            dst_ip VARCHAR(50),
-            protocol VARCHAR(20),
-            summary TEXT,
-            length INT,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
+        id SERIAL PRIMARY KEY,
+        src_ip VARCHAR(50),
+        dst_ip VARCHAR(50),
+        protocol VARCHAR(20),
+        src_port VARCHAR(10),
+        dst_port VARCHAR(10),
+        dns_query TEXT,
+        summary TEXT,
+        timestamp TIMESTAMP,
+        source VARCHAR(10) DEFAULT 'LIVE'
+    );
     """)
 
     conn.commit()
