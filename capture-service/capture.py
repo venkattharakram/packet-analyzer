@@ -5,8 +5,8 @@ import requests, time, os, threading
 
 app = Flask(__name__)
 
- #PARSER_URL = "http://127.0.0.1:5001/parse"
-PARSER_URL = "http://parser-service:5001/parse"
+PARSER_URL = "http://127.0.0.1:5001/parse"
+#PARSER_URL = "http://parser-service:5001/parse"
 
 sniff_thread = None
 stop_flag = False
