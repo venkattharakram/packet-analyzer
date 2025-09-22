@@ -80,6 +80,18 @@ def stop_sniffing():
     stop_flag = True
     return jsonify({"status": "sniffing_stopped"})
 
+@app.route("/", methods=["GET"])
+def root():
+    return jsonify({
+        "status": "capture-service running",
+        "available_endpoints": [
+            "/health",
+            "/start_sniffing",
+            "/stop_sniffing"
+        ]
+    })
+
+
 if __name__ == "__main__":
     # If run directly, still support manual env-based mode (backward compatible)
     MODE = os.getenv("MODE")
