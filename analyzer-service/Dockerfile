@@ -8,6 +8,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# Copy shared DB config from parent folder
+COPY ../db_config.py /app/db_config.py
+
 # First run db_init.py, then start Gunicorn
 CMD ["sh", "-c", "python db_init.py && gunicorn -b 0.0.0.0:5003 analyzer:app"]
 
