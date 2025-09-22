@@ -1,6 +1,11 @@
-FROM python:3.10
+FROM python:3.12-slim
+
 WORKDIR /app
+
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
 COPY capture.py .
-CMD ["python", "capture.py"]
+
+ENTRYPOINT ["python3", "capture.py"]
+

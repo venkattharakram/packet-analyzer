@@ -40,6 +40,24 @@ services:
     networks:
       - packet-net
 
+  capture-service:
+    build: ./capture-service
+    container_name: capture-service
+    network_mode: "host"   # ✅ capture host traffic
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    environment:
+      - PARSER_URL=http://172.31.91.156:5001/parse
+      - IFACE=ens5
+    extra_hosts:   # 👈 add hostnames that point to localhost
+      - "parser-service:127.0.0.1"
+      - "analyzer-service:127.0.0.1"
+      - "ui-service:127.0.0.1"
+      - "persistor-service:127.0.0.1"
+    restart: always
+
+
   persistor-service:
     build: ./persistor-service
     container_name: persistor-service
