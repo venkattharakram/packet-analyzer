@@ -128,10 +128,15 @@ services:
     container_name: capture-service
     environment:
       SERVICE_PORT: 5004
-    # IFACE can still be set manually if needed
-    # IFACE: eth0
-    network_mode: host        # 👈 capture traffic directly from host
-    restart: always           # 👈 must be key-value, not under services
+      IFACE: eth0   # fixed interface for now
+    ports:
+      - "5004:5004"
+    networks:
+      - packet-net
+    cap_add:        # allow sniffing
+      - NET_ADMIN
+      - NET_RAW
+    restart: always
     depends_on:
       parser-service:
         condition: service_started
