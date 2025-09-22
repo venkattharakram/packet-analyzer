@@ -128,8 +128,7 @@ services:
   container_name: capture-service
   environment:
     SERVICE_PORT: 5004
-    IFACE: "ens5"     # Force to EC2 network interface
-  network_mode: "host"   # ✅ Gives container direct access to host network
+  network_mode: "host"   # ✅ lets container see host NICs
   restart: always
   depends_on:
     parser-service:
