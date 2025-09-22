@@ -41,7 +41,9 @@ services:
       - packet-net
 
   persistor-service:
-    build: ./persistor-service
+    build:
+      context: .                     # use project root
+      dockerfile: persistor-service/Dockerfile
     container_name: persistor-service
     environment:
       SERVICE_PORT: 5002
@@ -81,7 +83,9 @@ services:
       start_period: 10s
 
   analyzer-service:
-    build: ./analyzer-service
+    build:
+      context: .
+      dockerfile: analyzer-service/Dockerfile
     container_name: analyzer-service
     environment:
       SERVICE_PORT: 5003
