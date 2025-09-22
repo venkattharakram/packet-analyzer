@@ -128,18 +128,16 @@ services:
     container_name: capture-service
     environment:
       SERVICE_PORT: 5004
-      IFACE: eth0   # fixed interface for now
-    ports:
-      - "5004:5004"
-    networks:
-      - packet-net
-    cap_add:        # allow sniffing
+      IFACE: enp39s0   # match your EC2 NIC
+    network_mode: "host"   # ✅ critical for sniffing
+    cap_add:
       - NET_ADMIN
       - NET_RAW
     restart: always
     depends_on:
       parser-service:
         condition: service_started
+
 
 
 
