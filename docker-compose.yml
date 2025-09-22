@@ -124,19 +124,16 @@ services:
       start_period: 10s
       
   capture-service:
-    build: ./capture-service
-    container_name: capture-service
-    environment:
-      SERVICE_PORT: 5004
-      # optionally allow selecting interface inside container
-      # IFACE: eth0
-    ports:
-      - "5004:5004"
-    networks:
-      - packet-net
-    depends_on:
-      parser-service:
-        condition: service_started
+  build: ./capture-service
+  container_name: capture-service
+  environment:
+    SERVICE_PORT: 5004
+    IFACE: "ens5"     # Force to EC2 network interface
+  network_mode: "host"   # ✅ Gives container direct access to host network
+  restart: always
+  depends_on:
+    parser-service:
+      condition: service_started
 
 
 volumes:
