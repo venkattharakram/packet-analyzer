@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy service code explicitly
 COPY analyzer-service/analyzer.py /app/analyzer.py
+COPY analyzer-service/db_init.py /app/db_init.py
 
 # Copy shared DB config from parent folder
 COPY ../db_config.py /app/db_config.py
