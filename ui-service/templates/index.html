@@ -2,103 +2,81 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Packet Analyzer</title>
+  <title>📡 Packet Analyzer</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css" rel="stylesheet">
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-  <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-  <style>
-    body { background: #f8f9fa; }
-    .chart-container {
-      position: relative;
-      width: 100%;
-      max-width: 350px;   /* ✅ compact chart */
-      margin: auto;
-    }
-    .card { box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-    .btn { min-width: 120px; }
-  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
-<div class="container mt-4">
-  <h2 class="mb-4"><span style="font-size:28px;">📡 Packet Analyzer</span></h2>
+<body class="bg-light">
 
-  <!-- Sniffing Controls + Filters -->
-  <div class="row mb-3">
-    <div class="col-md-6">
-      <div class="card p-3">
-        <h5>Sniffing Controls</h5>
-        <button class="btn btn-success me-2" onclick="startSniffing()">Start Sniffing</button>
-        <button class="btn btn-danger me-2" onclick="stopSniffing()">Stop Sniffing</button>
-        <span id="sniff-status" class="fw-bold text-secondary">Idle</span>
-      </div>
-    </div>
-    <div class="col-md-6">
-      <div class="card p-3">
-        <h5>Source Filters</h5>
-        <a href="/" class="btn btn-dark me-2">All Packets</a>
-        <a href="/?source=LIVE" class="btn btn-danger me-2">LIVE Packets</a>
-        <a href="/?source=PCAP" class="btn btn-primary">PCAP Packets</a>
-      </div>
-    </div>
+<div class="container mt-4">
+  <h2 class="mb-4 text-center">📡 Packet Analyzer Dashboard</h2>
+
+  <!-- Sniffing Controls -->
+  <div class="d-flex justify-content-center mb-4">
+    <button class="btn btn-success me-2" onclick="startSniffing()">▶️ Start Sniffing</button>
+    <button class="btn btn-danger me-2" onclick="stopSniffing()">⏹ Stop Sniffing</button>
+    <span id="sniff-status" class="fw-bold text-primary"></span>
+  </div>
+
+  <!-- Filters -->
+  <div class="text-center mb-4">
+    <a href="/" class="btn btn-dark btn-sm">All Packets</a>
+    <a href="/?source=LIVE" class="btn btn-danger btn-sm">LIVE</a>
+    <a href="/?source=PCAP" class="btn btn-primary btn-sm">PCAP</a>
   </div>
 
   <!-- Protocol Summary + Chart -->
   <div class="row mb-4">
     <div class="col-md-6">
-      <div class="card p-3">
-        <h5>
-          Protocol Summary 
-          <a href="/api/all_protocols" class="btn btn-sm btn-outline-secondary ms-2">All Protocols</a>
-          <button class="btn btn-sm btn-outline-primary ms-2" onclick="refreshSummary()">🔄 Refresh</button>
-        </h5>
-        <ul id="protocol-summary"></ul>
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title d-flex justify-content-between">
+            Protocol Summary
+            <button class="btn btn-outline-secondary btn-sm" onclick="refreshSummary()">🔄 Refresh</button>
+          </h5>
+          <ul id="protocol-summary" class="list-unstyled"></ul>
+          <a href="/api/all_protocols" class="btn btn-link">View All Protocols</a>
+        </div>
       </div>
     </div>
     <div class="col-md-6">
-      <div class="card p-3">
-        <h5>Protocol Distribution</h5>
-        <div class="chart-container">
-          <canvas id="protocolChart"></canvas>
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">Traffic Distribution</h5>
+          <canvas id="protocolChart" height="180"></canvas>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Packet List -->
-  <div class="card">
+  <!-- Packets Table -->
+  <div class="card shadow-sm">
     <div class="card-body">
-      <h5 class="card-title">
-        Packet List 
-        {% if selected %}<span class="badge bg-info">Protocol: {{ selected }}</span>{% endif %}
-        {% if selected_source %}<span class="badge bg-warning">Source: {{ selected_source }}</span>{% endif %}
-      </h5>
+      <h5 class="card-title">Captured Packets</h5>
       <div class="table-responsive">
-        <table id="packetTable" class="table table-striped table-bordered">
+        <table id="packetTable" class="table table-striped table-bordered table-sm">
           <thead class="table-dark">
             <tr>
               <th>ID</th>
               <th>Source IP</th>
-              <th>Dest IP</th>
+              <th>Destination IP</th>
               <th>Protocol</th>
               <th>Summary</th>
-              <th>UTC</th>
-              <th>IST</th>
+              <th>Timestamp (UTC)</th>
+              <th>Timestamp (IST)</th>
               <th>Source</th>
             </tr>
           </thead>
-          <tbody id="packet-body">
-            <!-- auto-filled via JS -->
-          </tbody>
+          <tbody></tbody>
         </table>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Scripts -->
 <script>
 let chart;
 let dataTable;
@@ -127,7 +105,6 @@ function refreshSummary() {
       ul.innerHTML = "";
       let labels = [], values = [];
       let colors = ["#6f42c1","#198754","#0d6efd","#dc3545","#ffc107","#20c997","#6610f2"];
-      let i = 0;
 
       for (const [proto, counts] of Object.entries(data)) {
         let li = document.createElement("li");
@@ -142,7 +119,6 @@ function refreshSummary() {
           labels.push(proto);
         }
         ul.appendChild(li);
-        i++;
       }
 
       if (chart) chart.destroy();
@@ -159,31 +135,27 @@ function refreshPackets() {
   fetch("/api/packets")
     .then(res => res.json())
     .then(data => {
-      let body = document.getElementById("packet-body");
-      body.innerHTML = "";
+      if (!dataTable) {
+        // Initialize once
+        dataTable = $('#packetTable').DataTable({ pageLength: 25 });
+      }
+      // Clear and refill rows
+      dataTable.clear();
       data.packets.forEach(p => {
         let utc = p.timestamp;
         let ist = convertToIST(utc);
-        body.innerHTML += `
-          <tr>
-            <td>${p.id}</td>
-            <td>${p.src_ip}</td>
-            <td>${p.dst_ip}</td>
-            <td><span class="badge bg-secondary">${p.protocol}</span></td>
-            <td>${p.summary}</td>
-            <td class="utc">${utc}</td>
-            <td class="ist">${ist}</td>
-            <td>${p.source}</td>
-          </tr>
-        `;
+        dataTable.row.add([
+          p.id,
+          p.src_ip,
+          p.dst_ip,
+          `<span class="badge bg-secondary">${p.protocol}</span>`,
+          p.summary,
+          utc,
+          ist,
+          p.source
+        ]);
       });
-
-      if (!dataTable) {
-        dataTable = $('#packetTable').DataTable({ pageLength: 25 });
-      } else {
-        dataTable.clear().destroy();
-        dataTable = $('#packetTable').DataTable({ pageLength: 25 });
-      }
+      dataTable.draw(false); // ✅ redraw without reset
     });
 }
 
@@ -209,5 +181,6 @@ $(document).ready(function() {
   refreshPackets();
 });
 </script>
+
 </body>
 </html>
