@@ -60,7 +60,7 @@ pipeline {
             steps {
                 sh '''
                   echo "🚀 Deploying updated stack..."
-                  docker-compose -p packet-analyzer -f docker-compose.yml down -v --remove-orphans || true
+                  docker-compose -p packet-analyzer -f docker-compose.yml down
                   docker-compose -p packet-analyzer -f docker-compose.yml up -d
                 '''
             }
