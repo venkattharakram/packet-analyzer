@@ -4,176 +4,209 @@
   <meta charset="UTF-8">
   <title>Packet Analyzer</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
   <style>
-    body { background-color: #f8f9fa; }
-    .card { margin-bottom: 1rem; }
-    .status-idle { color: gray; font-weight: bold; }
-    .status-running { color: green; font-weight: bold; }
-    .status-stopped { color: red; font-weight: bold; }
+    body { background: #f8f9fa; }
+    .chart-container {
+      position: relative;
+      width: 100%;
+      max-width: 350px;   /* ✅ compact chart */
+      margin: auto;
+    }
+    .card { box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+    .btn { min-width: 120px; }
   </style>
 </head>
 <body>
-<div class="container-fluid mt-3">
-  <h3 class="mb-3">📡 Packet Analyzer</h3>
+<div class="container mt-4">
+  <h2 class="mb-4"><span style="font-size:28px;">📡 Packet Analyzer</span></h2>
 
-  <!-- Controls -->
-  <div class="row">
+  <!-- Sniffing Controls + Filters -->
+  <div class="row mb-3">
     <div class="col-md-6">
       <div class="card p-3">
         <h5>Sniffing Controls</h5>
-        <button class="btn btn-success" onclick="startSniffing()">Start Sniffing</button>
-        <button class="btn btn-danger" onclick="stopSniffing()">Stop Sniffing</button>
-        <span id="sniff-status" class="ms-3 status-idle">Idle</span>
+        <button class="btn btn-success me-2" onclick="startSniffing()">Start Sniffing</button>
+        <button class="btn btn-danger me-2" onclick="stopSniffing()">Stop Sniffing</button>
+        <span id="sniff-status" class="fw-bold text-secondary">Idle</span>
       </div>
     </div>
     <div class="col-md-6">
       <div class="card p-3">
         <h5>Source Filters</h5>
-        <a href="/" class="btn btn-dark">All Packets</a>
-        <a href="/?source=LIVE" class="btn btn-danger">LIVE Packets</a>
+        <a href="/" class="btn btn-dark me-2">All Packets</a>
+        <a href="/?source=LIVE" class="btn btn-danger me-2">LIVE Packets</a>
         <a href="/?source=PCAP" class="btn btn-primary">PCAP Packets</a>
       </div>
     </div>
   </div>
 
-  <!-- Summary + Chart -->
-  <div class="row">
+  <!-- Protocol Summary + Chart -->
+  <div class="row mb-4">
     <div class="col-md-6">
       <div class="card p-3">
-        <div class="d-flex justify-content-between">
-          <h5>Protocol Summary</h5>
-          <div>
-            <a href="/api/all_protocols" class="btn btn-sm btn-outline-secondary">All Protocols</a>
-            <button class="btn btn-sm btn-outline-primary" onclick="refreshSummary()">🔄 Refresh</button>
-          </div>
-        </div>
-        <ul id="protocol-list">
-          {% for proto, counts in summary.items() %}
-          <li>
-            <a href="/?protocol={{ proto }}&source={{ selected_source|default('LIVE') }}">{{ proto }}</a>
-            {% for src, count in counts.items() %}
-              ({{ src }}={{ count }})
-            {% endfor %}
-          </li>
-          {% endfor %}
-        </ul>
+        <h5>
+          Protocol Summary 
+          <a href="/api/all_protocols" class="btn btn-sm btn-outline-secondary ms-2">All Protocols</a>
+          <button class="btn btn-sm btn-outline-primary ms-2" onclick="refreshSummary()">🔄 Refresh</button>
+        </h5>
+        <ul id="protocol-summary"></ul>
       </div>
     </div>
     <div class="col-md-6">
       <div class="card p-3">
         <h5>Protocol Distribution</h5>
-        <canvas id="protocolChart"></canvas>
+        <div class="chart-container">
+          <canvas id="protocolChart"></canvas>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Packet Table -->
-  <div class="card p-3">
-    <h5>
-      Packet List
-      {% if selected %}<span class="badge bg-info">Protocol: {{ selected }}</span>{% endif %}
-      {% if selected_source %}<span class="badge bg-secondary">Source: {{ selected_source }}</span>{% endif %}
-    </h5>
-    <div class="table-responsive">
-      <table id="packetTable" class="table table-striped table-bordered">
-        <thead class="table-dark">
-          <tr>
-            <th>ID</th>
-            <th>Source IP</th>
-            <th>Dest IP</th>
-            <th>Protocol</th>
-            <th>Summary</th>
-            <th>UTC</th>
-            <th>IST</th>
-            <th>Source</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for p in packets %}
-          <tr>
-            <td>{{ p.id }}</td>
-            <td>{{ p.src_ip }}</td>
-            <td>{{ p.dst_ip }}</td>
-            <td><span class="badge bg-info">{{ p.protocol }}</span></td>
-            <td>{{ p.summary }}</td>
-            <td>{{ p.timestamp }}</td>
-            <td>{{ p.timestamp | to_datetime | to_ist }}</td>
-            <td>{{ p.source }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  <!-- Packet List -->
+  <div class="card">
+    <div class="card-body">
+      <h5 class="card-title">
+        Packet List 
+        {% if selected %}<span class="badge bg-info">Protocol: {{ selected }}</span>{% endif %}
+        {% if selected_source %}<span class="badge bg-warning">Source: {{ selected_source }}</span>{% endif %}
+      </h5>
+      <div class="table-responsive">
+        <table id="packetTable" class="table table-striped table-bordered">
+          <thead class="table-dark">
+            <tr>
+              <th>ID</th>
+              <th>Source IP</th>
+              <th>Dest IP</th>
+              <th>Protocol</th>
+              <th>Summary</th>
+              <th>UTC</th>
+              <th>IST</th>
+              <th>Source</th>
+            </tr>
+          </thead>
+          <tbody id="packet-body">
+            <!-- auto-filled via JS -->
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
 
+<!-- Scripts -->
 <script>
 let chart;
+let dataTable;
 
-// Refresh summary + chart
+// --- Sniffing Controls ---
+function startSniffing() {
+  fetch("/api/start_sniffing", { method: "POST" })
+    .then(res => res.json())
+    .then(() => { document.getElementById("sniff-status").innerText = "✅ Sniffing Started"; })
+    .catch(() => { document.getElementById("sniff-status").innerText = "❌ Error starting sniffing"; });
+}
+
+function stopSniffing() {
+  fetch("/api/stop_sniffing", { method: "POST" })
+    .then(res => res.json())
+    .then(() => { document.getElementById("sniff-status").innerText = "🛑 Sniffing Stopped"; })
+    .catch(() => { document.getElementById("sniff-status").innerText = "❌ Error stopping sniffing"; });
+}
+
+// --- Protocol Summary + Chart ---
 function refreshSummary() {
   fetch("/api/summary")
     .then(res => res.json())
     .then(data => {
-      // Update list
-      let list = document.getElementById("protocol-list");
-      list.innerHTML = "";
+      let ul = document.getElementById("protocol-summary");
+      ul.innerHTML = "";
+      let labels = [], values = [];
+      let colors = ["#6f42c1","#198754","#0d6efd","#dc3545","#ffc107","#20c997","#6610f2"];
+      let i = 0;
+
       for (const [proto, counts] of Object.entries(data)) {
         let li = document.createElement("li");
         let a = document.createElement("a");
-        a.href = `/?protocol=${proto}&source=LIVE`;
+        a.href = "/?protocol=" + proto;
         a.innerText = proto;
         li.appendChild(a);
+
         for (const [src, count] of Object.entries(counts)) {
           li.innerHTML += ` (${src}=${count})`;
+          values.push(count);
+          labels.push(proto);
         }
-        list.appendChild(li);
+        ul.appendChild(li);
+        i++;
       }
 
-      // Update chart
-      let labels = Object.keys(data);
-      let values = labels.map(p => Object.values(data[p]).reduce((a,b)=>a+b,0));
-      let colors = ["#7E57C2","#42A5F5","#66BB6A","#FFA726","#EF5350","#26C6DA","#AB47BC"];
       if (chart) chart.destroy();
       chart = new Chart(document.getElementById("protocolChart"), {
         type: "doughnut",
-        data: { labels, datasets: [{ data: values, backgroundColor: colors }] }
+        data: { labels, datasets: [{ data: values, backgroundColor: colors }] },
+        options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: "bottom" } } }
       });
     });
 }
 
-// Sniffing Controls
-function startSniffing() {
-  fetch("/api/start_sniffing", { method: "POST" })
+// --- Refresh Packet Table ---
+function refreshPackets() {
+  fetch("/api/packets")
     .then(res => res.json())
-    .then(() => {
-      document.getElementById("sniff-status").innerText = "✅ Sniffing Started";
-      document.getElementById("sniff-status").className = "status-running";
-    });
-}
-function stopSniffing() {
-  fetch("/api/stop_sniffing", { method: "POST" })
-    .then(res => res.json())
-    .then(() => {
-      document.getElementById("sniff-status").innerText = "🛑 Sniffing Stopped";
-      document.getElementById("sniff-status").className = "status-stopped";
+    .then(data => {
+      let body = document.getElementById("packet-body");
+      body.innerHTML = "";
+      data.packets.forEach(p => {
+        let utc = p.timestamp;
+        let ist = convertToIST(utc);
+        body.innerHTML += `
+          <tr>
+            <td>${p.id}</td>
+            <td>${p.src_ip}</td>
+            <td>${p.dst_ip}</td>
+            <td><span class="badge bg-secondary">${p.protocol}</span></td>
+            <td>${p.summary}</td>
+            <td class="utc">${utc}</td>
+            <td class="ist">${ist}</td>
+            <td>${p.source}</td>
+          </tr>
+        `;
+      });
+
+      if (!dataTable) {
+        dataTable = $('#packetTable').DataTable({ pageLength: 25 });
+      } else {
+        dataTable.clear().destroy();
+        dataTable = $('#packetTable').DataTable({ pageLength: 25 });
+      }
     });
 }
 
-// DataTable + auto-refresh
-$(document).ready(function () {
-  $('#packetTable').DataTable({
-    pageLength: 25,
-    order: [[0, "desc"]]
-  });
+// --- IST Conversion ---
+function convertToIST(utcTime) {
+  if (!utcTime) return "";
+  try {
+    let utcDate = new Date(utcTime + "Z");
+    let istDate = new Date(utcDate.getTime() + (5.5 * 60 * 60 * 1000));
+    return istDate.toLocaleString("en-IN", { hour12: true });
+  } catch {
+    return "Invalid";
+  }
+}
 
-  // auto refresh every 2s
-  setInterval(refreshSummary, 2000);
+// --- Auto Refresh ---
+setInterval(refreshSummary, 2000);
+setInterval(refreshPackets, 2000);
+
+// --- Init ---
+$(document).ready(function() {
+  refreshSummary();
+  refreshPackets();
 });
 </script>
 </body>
