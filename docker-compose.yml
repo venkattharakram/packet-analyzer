@@ -1,49 +1,39 @@
-version: "3.8"
+version: "3.9"
 
 services:
   db:
-    image: postgres:14
-    container_name: packet-db
-    restart: always
+    image: postgres:15
+    container_name: db
     environment:
-      POSTGRES_DB: packetdb
       POSTGRES_USER: packetuser
       POSTGRES_PASSWORD: packetpass
+      POSTGRES_DB: packetdb
     ports:
       - "5432:5432"
-    volumes:
-      - db_data:/var/lib/postgresql/data
-      - ./db-init:/docker-entrypoint-initdb.d
     networks:
       - packet-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U packetuser"]
+      test: ["CMD-SHELL", "pg_isready -U packetuser -d packetdb"]
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 10s
 
   pgadmin:
     image: dpage/pgadmin4
     container_name: pgadmin
-    restart: always
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@packet.com
-      PGADMIN_DEFAULT_PASSWORD: admin123
-    volumes:
-      - ./pgadmin_config:/pgadmin4/servers
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
     ports:
       - "5050:80"
+    networks:
+      - packet-net
     depends_on:
       db:
         condition: service_healthy
-    networks:
-      - packet-net
 
   persistor-service:
-    build:
-      context: .                     # use project root
-      dockerfile: persistor-service/Dockerfile
+    image: ${DOCKERHUB_USER}/persistor-service:latest
     container_name: persistor-service
     environment:
       SERVICE_PORT: 5002
@@ -63,7 +53,7 @@ services:
       start_period: 10s
 
   parser-service:
-    build: ./parser-service
+    image: ${DOCKERHUB_USER}/parser-service:latest
     container_name: parser-service
     environment:
       SERVICE_PORT: 5001
@@ -83,9 +73,7 @@ services:
       start_period: 10s
 
   analyzer-service:
-    build:
-      context: .
-      dockerfile: analyzer-service/Dockerfile
+    image: ${DOCKERHUB_USER}/analyzer-service:latest
     container_name: analyzer-service
     environment:
       SERVICE_PORT: 5003
@@ -103,9 +91,9 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
-  
+
   ui-service:
-    build: ./ui-service
+    image: ${DOCKERHUB_USER}/ui-service:latest
     container_name: ui-service
     environment:
       SERVICE_PORT: 5000
@@ -122,9 +110,9 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-      
+
   capture-service:
-    build: ./capture-service
+    image: ${DOCKERHUB_USER}/capture-service:latest
     container_name: capture-service
     environment:
       SERVICE_PORT: 5004
@@ -138,13 +126,6 @@ services:
       parser-service:
         condition: service_started
 
-
-
-
-volumes:
-  db_data:
-
 networks:
   packet-net:
     driver: bridge
-
