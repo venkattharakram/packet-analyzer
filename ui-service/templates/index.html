@@ -27,26 +27,12 @@
 <div class="container-fluid mt-3">
   <h3 class="mb-3">📡 Packet Analyzer</h3>
 
-    <!-- Sniffing Controls -->
-    <div class="mb-3">
-        <!-- Mode -->
-        <select id="mode-select" class="form-select d-inline w-auto" onchange="togglePcapSelect()">
-            <option value="LIVE">LIVE</option>
-            <option value="PCAP">PCAP</option>
-        </select>
-
-        <!-- PCAP Select -->
-        <select id="pcap-select" class="form-select d-inline w-auto" disabled>
-            <option value="">-- Select PCAP --</option>
-        </select>
-
-        <!-- Interface Select -->
-        <select id="iface-select" class="form-select d-inline w-auto">
-            <option value="">-- Auto Detect --</option>
-        </select>
-
-        <!-- Buttons -->
-        <button id="start-btn" class="btn btn-success" onclick="startSniffing()">Start Sniffing</button>
+  <!-- Controls -->
+  <div class="row">
+    <div class="col-md-6">
+      <div class="card p-3">
+        <h5>Sniffing Controls</h5>
+        <button class="btn btn-success" onclick="startSniffing()">Start Sniffing</button>
         <button class="btn btn-danger" onclick="stopSniffing()">Stop Sniffing</button>
         <span id="sniff-status" class="ms-3 status-idle">Idle</span>
       </div>
@@ -133,112 +119,72 @@
 </div>
 
 <script>
-async function loadPcaps() {
-    try {
-        const res = await fetch("/api/pcaps");
-        const data = await res.json();
-        const select = document.getElementById("pcap-select");
-        select.innerHTML = '<option value="">-- Select PCAP --</option>';
-        if (data.pcaps) {
-            data.pcaps.forEach(file => {
-                const opt = document.createElement("option");
-                opt.value = "/app/sample-pcaps/" + file;
-                opt.textContent = file;
-                select.appendChild(opt);
-            });
-        }
-    } catch (err) {
-        console.error("Failed to load PCAPs", err);
-    }
-}
+let chart;
 
-async function loadInterfaces() {
-    try {
-        const res = await fetch("/api/interfaces");
-        const data = await res.json();
-        const select = document.getElementById("iface-select");
-        select.innerHTML = '<option value="">-- Auto Detect --</option>';
-        if (data.interfaces) {
-            data.interfaces.forEach(iface => {
-                const opt = document.createElement("option");
-                opt.value = iface;
-                opt.textContent = iface;
-                select.appendChild(opt);
-            });
-        }
-    } catch (err) {
-        console.error("Failed to load interfaces", err);
-    }
-}
-
-function togglePcapSelect() {
-    const mode = document.getElementById("mode-select").value;
-    const pcapSelect = document.getElementById("pcap-select");
-    const startBtn = document.getElementById("start-btn");
-
-    if (mode === "PCAP") {
-        pcapSelect.disabled = false;
-        if (!pcapSelect.value) {
-            startBtn.disabled = true;
-        }
-    } else {
-        pcapSelect.disabled = true;
-        startBtn.disabled = false;
-    }
-}
-
-function startSniffing() {
-    const mode = document.getElementById("mode-select").value;
-    const file = document.getElementById("pcap-select").value;
-    const iface = document.getElementById("iface-select").value;
-
-    let payload = { mode: mode };
-    if (mode === "PCAP" && file) {
-        payload.file = file;
-    }
-    if (iface) {
-        payload.iface = iface;
-    }
-
-    fetch("/api/start_sniffing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-    })
+// Refresh summary + chart
+function refreshSummary() {
+  fetch("/api/summary")
     .then(res => res.json())
     .then(data => {
-        document.getElementById("sniff-status").innerText =
-            "✅ Sniffing Started (" + mode + ", " + (iface || "Auto") + ")";
-    })
-    .catch(err => {
-        document.getElementById("sniff-status").innerText =
-            "❌ Error starting sniffing";
+      // Update list
+      let list = document.getElementById("protocol-list");
+      list.innerHTML = "";
+      for (const [proto, counts] of Object.entries(data)) {
+        let li = document.createElement("li");
+        let a = document.createElement("a");
+        a.href = `/?protocol=${proto}&source=LIVE`;
+        a.innerText = proto;
+        li.appendChild(a);
+        for (const [src, count] of Object.entries(counts)) {
+          li.innerHTML += ` (${src}=${count})`;
+        }
+        list.appendChild(li);
+      }
+
+      // Update chart
+      let labels = Object.keys(data);
+      let values = labels.map(p => Object.values(data[p]).reduce((a,b)=>a+b,0));
+      let colors = ["#7E57C2","#42A5F5","#66BB6A","#FFA726","#EF5350","#26C6DA","#AB47BC"];
+      if (chart) chart.destroy();
+      chart = new Chart(document.getElementById("protocolChart"), {
+        type: "doughnut",
+        data: { labels, datasets: [{ data: values, backgroundColor: colors }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false
+        }
+      });
+    });
+}
+
+// Sniffing Controls
+function startSniffing() {
+  fetch("/api/start_sniffing", { method: "POST" })
+    .then(res => res.json())
+    .then(() => {
+      document.getElementById("sniff-status").innerText = "✅ Sniffing Started";
+      document.getElementById("sniff-status").className = "status-running";
     });
 }
 function stopSniffing() {
-    fetch("/api/stop_sniffing", { method: "POST" })
-        .then(res => res.json())
-        .then(data => {
-            document.getElementById("sniff-status").innerText =
-                "🛑 Sniffing Stopped";
-        })
-        .catch(err => {
-            document.getElementById("sniff-status").innerText =
-                "❌ Error stopping sniffing";
-        });
+  fetch("/api/stop_sniffing", { method: "POST" })
+    .then(res => res.json())
+    .then(() => {
+      document.getElementById("sniff-status").innerText = "🛑 Sniffing Stopped";
+      document.getElementById("sniff-status").className = "status-stopped";
+    });
 }
 
-// Load data on page load
-window.onload = () => {
-    loadPcaps();
-    loadInterfaces();
-    togglePcapSelect();
-    document.getElementById("pcap-select").addEventListener("change", () => {
-        document.getElementById("start-btn").disabled =
-            !document.getElementById("pcap-select").value;
-    });
-};
+// DataTable + auto-refresh
+$(document).ready(function () {
+  $('#packetTable').DataTable({
+    pageLength: 25,
+    order: [[0, "desc"]]
+  });
+
+  // auto refresh every 2s
+  setInterval(refreshSummary, 2000);
+});
 </script>
 </body>
 </html>
-

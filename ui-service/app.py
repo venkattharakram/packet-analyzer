@@ -10,9 +10,10 @@ CORS(app)
 
 # Analyzer + Capture endpoints
 ANALYZER_URL = "http://analyzer-service:5003"
-CAPTURE_URL = "http://capture-service:5004"
-CORS(app)
+CAPTURE_URL = "http://172.31.39.213:5004"
 
+# Setup logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 # -------------------------------------------------------------------
 # Filters for datetime formatting
@@ -24,7 +25,6 @@ def to_datetime(value):
     except Exception:
         return None
 
-
 @app.template_filter('to_ist')
 def to_ist(value):
     try:
@@ -33,52 +33,34 @@ def to_ist(value):
     except Exception:
         return value
 
-
-# --- Start Sniffing ---
+# -------------------------------------------------------------------
+# Start/Stop Sniffing APIs
+# -------------------------------------------------------------------
 @app.route("/api/start_sniffing", methods=["POST"])
 def start_sniffing():
     try:
-        data = request.get_json(force=True, silent=True) or {}
-        mode = data.get("mode", "LIVE")
-        pcap_file = data.get("file")
-        iface = data.get("iface")
-        num_pkts = data.get("num", 0)
-
-        params = {"mode": mode, "num": num_pkts}
-        if pcap_file:
-            params["file"] = pcap_file
-        if iface:
-            params["iface"] = iface
-
-        print(f"➡️ Forwarding sniff request to capture-service with params={params}", flush=True)
-        res = requests.post(f"{CAPTURE_URL}/start_sniffing", params=params, timeout=5)
+        logging.info("📡 Forwarding start_sniffing request to capture-service...")
+        res = requests.post(f"{CAPTURE_URL}/start_sniffing")
+        logging.info(f"✅ Capture-service response: {res.json()}")
         return jsonify({"status": "started", "response": res.json()})
     except Exception as e:
         logging.error(f"❌ Failed to start sniffing: {e}")
         return jsonify({"error": str(e)}), 500
 
-
-# --- Stop Sniffing ---
 @app.route("/api/stop_sniffing", methods=["POST"])
 def stop_sniffing():
     try:
-        res = requests.post(f"{CAPTURE_URL}/stop_sniffing", timeout=5)
+        logging.info("🛑 Forwarding stop_sniffing request to capture-service...")
+        res = requests.post(f"{CAPTURE_URL}/stop_sniffing")
+        logging.info(f"✅ Capture-service response: {res.json()}")
         return jsonify({"status": "stopped", "response": res.json()})
     except Exception as e:
         logging.error(f"❌ Failed to stop sniffing: {e}")
         return jsonify({"error": str(e)}), 500
 
-
-# --- List Interfaces (new API) ---
-@app.route("/api/interfaces", methods=["GET"])
-def list_interfaces():
-    try:
-        res = requests.get(f"{CAPTURE_URL}/interfaces", timeout=5)
-        return jsonify(res.json())
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
+# -------------------------------------------------------------------
+# UI Route
+# -------------------------------------------------------------------
 @app.route("/")
 def index():
     protocol = request.args.get("protocol")
@@ -94,11 +76,12 @@ def index():
         else:
             packets = requests.get(f"{ANALYZER_URL}/packets", params=params).json()
     except Exception as e:
-        print("UI Error:", e)
-    return render_template("index.html", packets=packets, summary=summary,
-                           selected=protocol, selected_source=source)
+        logging.error(f"UI Error fetching analyzer data: {e}")
+    return render_template("index.html", packets=packets, summary=summary, selected=protocol, selected_source=source)
 
-
+# -------------------------------------------------------------------
+# JSON APIs
+# -------------------------------------------------------------------
 @app.route("/api/packets", methods=["GET"])
 def api_packets():
     try:
@@ -108,7 +91,6 @@ def api_packets():
         logging.error(f"Error in /api/packets: {e}")
         return jsonify({"error": str(e)}), 500
 
-
 @app.route("/api/summary", methods=["GET"])
 def api_summary():
     try:
@@ -117,7 +99,6 @@ def api_summary():
     except Exception as e:
         logging.error(f"Error in /api/summary: {e}")
         return jsonify({"error": str(e)}), 500
-
 
 @app.route("/api/filter", methods=["GET"])
 def api_filter():
@@ -135,7 +116,6 @@ def api_filter():
         logging.error(f"Error in /api/filter: {e}")
         return jsonify({"error": str(e)}), 500
 
-
 @app.route("/api/all_protocols", methods=["GET"])
 def api_all_protocols():
     try:
@@ -145,13 +125,15 @@ def api_all_protocols():
         logging.error(f"Error in /api/all_protocols: {e}")
         return jsonify({"error": str(e)}), 500
 
-
-
+# -------------------------------------------------------------------
+# Health Check
+# -------------------------------------------------------------------
 @app.route("/health")
 def health():
     return "OK", 200
 
-
+# -------------------------------------------------------------------
+# Entrypoint
+# -------------------------------------------------------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
-
