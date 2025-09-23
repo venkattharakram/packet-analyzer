@@ -10,7 +10,9 @@ CORS(app)
 
 # Analyzer + Capture endpoints
 ANALYZER_URL = "http://analyzer-service:5003"
-CAPTURE_URL = "http://172.31.39.213:5004"
+#CAPTURE_URL = "http://172.31.39.213:5004"
+CAPTURE_URL = "http://host.docker.internal:5004"
+
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
