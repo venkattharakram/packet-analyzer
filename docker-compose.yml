@@ -67,6 +67,8 @@ services:
     container_name: parser-service
     environment:
       SERVICE_PORT: 5001
+    ports:
+    - "5001:5001"
       DATABASE_URL: "postgresql://packetuser:packetpass@db:5432/packetdb"
     ports:
       - "5001:5001"
@@ -128,8 +130,6 @@ services:
     container_name: capture-service
     environment:
       SERVICE_PORT: 5004
-    ports:
-    - "5001:5001"
       IFACE: enp39s0   # match your EC2 NIC
     network_mode: "host"   # ✅ critical for sniffing
     cap_add:
