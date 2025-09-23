@@ -67,8 +67,6 @@ services:
     container_name: parser-service
     environment:
       SERVICE_PORT: 5001
-    ports:
-    - "5001:5001"
       DATABASE_URL: "postgresql://packetuser:packetpass@db:5432/packetdb"
     ports:
       - "5001:5001"
