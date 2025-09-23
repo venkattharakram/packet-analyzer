@@ -98,7 +98,7 @@ services:
     container_name: capture-service
     environment:
       SERVICE_PORT: 5004
-      IFACE: eth0   # adjust to your EC2 NIC
+      IFACE: enp39s0   # adjust to your EC2 NIC
     network_mode: "host"
     cap_add:
       - NET_ADMIN
