@@ -1,123 +1,87 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>📡 Packet Analyzer Dashboard</title>
-
-  <!-- Bootstrap & Icons -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
-
-  <!-- DataTables -->
-  <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet"/>
-
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
-
+  <meta charset="UTF-8">
+  <title>Packet Analyzer</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
   <style>
-    body { background:#f6f7fb; }
-    .navbar-brand { font-weight:700; letter-spacing:.3px; }
-    .card { border:0; box-shadow: 0 8px 18px rgba(18,38,63,.05); }
-    .card-title { font-weight:600; }
-    .badge-pill { border-radius: 999px; padding:.4rem .7rem; }
-    .tiny { font-size:.85rem; }
-    .chart-card canvas { max-height:300px; }
-    .proto-link { text-decoration:none; }
-    .proto-link:hover { text-decoration:underline; }
-    .refresh-time { font-size:.85rem; color:#6c757d; }
+    body { background-color: #f8f9fa; }
+    .card { margin-bottom: 1rem; }
+    .status-idle { color: gray; font-weight: bold; }
+    .status-running { color: green; font-weight: bold; }
+    .status-stopped { color: red; font-weight: bold; }
   </style>
 </head>
 <body>
-
-<!-- NAV -->
-<nav class="navbar navbar-dark bg-dark">
-  <div class="container-fluid">
-    <a class="navbar-brand" href="/">📡 Packet Analyzer</a>
-    <span class="refresh-time" id="lastRefresh">Last refresh: —</span>
-  </div>
-</nav>
-
-<div class="container-fluid my-4">
+<div class="container-fluid mt-3">
+  <h3 class="mb-3">📡 Packet Analyzer</h3>
 
   <!-- Controls -->
-  <div class="row g-4">
-    <div class="col-lg-6">
-      <div class="card">
-        <div class="card-body d-flex align-items-center gap-2">
-          <h5 class="card-title mb-0 me-3">Sniffing Controls</h5>
-          <button class="btn btn-success" onclick="startSniffing()">
-            <i class="bi bi-play-circle me-1"></i>Start Sniffing
-          </button>
-          <button class="btn btn-danger" onclick="stopSniffing()">
-            <i class="bi bi-stop-circle me-1"></i>Stop Sniffing
-          </button>
-          <span id="sniff-status" class="badge bg-secondary ms-2">Idle</span>
-        </div>
+  <div class="row">
+    <div class="col-md-6">
+      <div class="card p-3">
+        <h5>Sniffing Controls</h5>
+        <button class="btn btn-success" onclick="startSniffing()">Start Sniffing</button>
+        <button class="btn btn-danger" onclick="stopSniffing()">Stop Sniffing</button>
+        <span id="sniff-status" class="ms-3 status-idle">Idle</span>
       </div>
     </div>
-
-    <div class="col-lg-6">
-      <div class="card">
-        <div class="card-body d-flex align-items-center gap-2">
-          <h5 class="card-title mb-0 me-3">Source Filters</h5>
-          <a href="/" class="btn btn-outline-dark">All Packets</a>
-          <a href="/?source=LIVE" class="btn btn-outline-danger">LIVE Packets</a>
-          <a href="/?source=PCAP" class="btn btn-outline-primary">PCAP Packets</a>
-        </div>
+    <div class="col-md-6">
+      <div class="card p-3">
+        <h5>Source Filters</h5>
+        <a href="/" class="btn btn-dark">All Packets</a>
+        <a href="/?source=LIVE" class="btn btn-danger">LIVE Packets</a>
+        <a href="/?source=PCAP" class="btn btn-primary">PCAP Packets</a>
       </div>
     </div>
   </div>
 
   <!-- Summary + Chart -->
-  <div class="row g-4 mt-1">
-    <div class="col-xl-6">
-      <div class="card">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center">
-            <h5 class="card-title mb-2">📊 Protocol Summary</h5>
-            <!-- All Protocols button -->
-            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#allProtocolsModal">
-              <i class="bi bi-list-ul me-1"></i>All Protocols
-            </button>
+  <div class="row">
+    <div class="col-md-6">
+      <div class="card p-3">
+        <div class="d-flex justify-content-between">
+          <h5>Protocol Summary</h5>
+          <div>
+            <a href="/api/all_protocols" class="btn btn-sm btn-outline-secondary">All Protocols</a>
+            <button class="btn btn-sm btn-outline-primary" onclick="refreshSummary()">🔄 Refresh</button>
           </div>
-
-          <ul class="mb-0">
-            {% for proto, counts in summary.items() %}
-              <li>
-                <a class="proto-link" href="/?protocol={{ proto }}">{{ proto }}</a>
-                {% for src, count in counts.items() %}
-                  <span class="tiny">({{ src }}={{ count }})</span>
-                {% endfor %}
-              </li>
-            {% endfor %}
-          </ul>
         </div>
+        <ul id="protocol-list">
+          {% for proto, counts in summary.items() %}
+          <li>
+            <a href="/?protocol={{ proto }}&source={{ selected_source|default('LIVE') }}">{{ proto }}</a>
+            {% for src, count in counts.items() %}
+              ({{ src }}={{ count }})
+            {% endfor %}
+          </li>
+          {% endfor %}
+        </ul>
       </div>
     </div>
-
-    <div class="col-xl-6">
-      <div class="card chart-card">
-        <div class="card-body">
-          <h5 class="card-title mb-3">📈 Protocol Distribution</h5>
-          <canvas id="protocolChart"></canvas>
-        </div>
+    <div class="col-md-6">
+      <div class="card p-3">
+        <h5>Protocol Distribution</h5>
+        <canvas id="protocolChart"></canvas>
       </div>
     </div>
   </div>
 
-  <!-- Packets Table -->
-  <div class="card mt-4">
-    <div class="card-body">
-      <h5 class="card-title mb-3">
-        Packet List
-        {% if selected %}<span class="badge bg-dark badge-pill ms-2">Protocol: {{ selected }}</span>{% endif %}
-        {% if selected_source %}<span class="badge bg-primary badge-pill ms-2">Source: {{ selected_source }}</span>{% endif %}
-      </h5>
-
-      <div class="table-responsive">
-        <table id="packets-table" class="table table-striped table-bordered w-100">
-          <thead class="table-dark">
+  <!-- Packet Table -->
+  <div class="card p-3">
+    <h5>
+      Packet List
+      {% if selected %}<span class="badge bg-info">Protocol: {{ selected }}</span>{% endif %}
+      {% if selected_source %}<span class="badge bg-secondary">Source: {{ selected_source }}</span>{% endif %}
+    </h5>
+    <div class="table-responsive">
+      <table id="packetTable" class="table table-striped table-bordered">
+        <thead class="table-dark">
           <tr>
             <th>ID</th>
             <th>Source IP</th>
@@ -128,182 +92,89 @@
             <th>IST</th>
             <th>Source</th>
           </tr>
-          </thead>
-          <tbody>
+        </thead>
+        <tbody>
           {% for p in packets %}
           <tr>
             <td>{{ p.id }}</td>
             <td>{{ p.src_ip }}</td>
             <td>{{ p.dst_ip }}</td>
-            <td><span class="badge text-bg-info">{{ p.protocol }}</span></td>
+            <td><span class="badge bg-info">{{ p.protocol }}</span></td>
             <td>{{ p.summary }}</td>
             <td>{{ p.timestamp }}</td>
             <td>{{ p.timestamp | to_datetime | to_ist }}</td>
             <td>{{ p.source }}</td>
           </tr>
           {% endfor %}
-          </tbody>
-        </table>
-      </div>
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
-
-<!-- All Protocols Modal -->
-<div class="modal fade" id="allProtocolsModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">All Protocols (by Source)</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <div id="allProtocolsBody" class="small text-muted">Loading…</div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Toast -->
-<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
-  <div id="appToast" class="toast align-items-center text-white bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
-    <div class="d-flex">
-      <div class="toast-body" id="toastMsg">Ready.</div>
-      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-    </div>
-  </div>
-</div>
-
-<!-- JS libs -->
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
 
 <script>
-  // ---------- helpers ----------
-  const toastEl = document.getElementById('appToast');
-  const toast = new bootstrap.Toast(toastEl, { delay: 2500 });
-  function showToast(msg) { document.getElementById('toastMsg').textContent = msg; toast.show(); }
-  function toIST(utc) {
-    try { return new Date(utc).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }); }
-    catch { return utc; }
-  }
-  function markRefreshed() {
-    const now = new Date().toLocaleTimeString();
-    document.getElementById('lastRefresh').textContent = 'Last refresh: ' + now;
-  }
+let chart;
 
-  // ---------- sniffing ----------
-  function startSniffing() {
-    fetch('/api/start_sniffing', { method: 'POST' })
-      .then(r => r.json())
-      .then(() => {
-        const b = document.getElementById('sniff-status');
-        b.className = 'badge bg-success'; b.textContent = 'Sniffing Started';
-        showToast('Sniffing started.');
-      })
-      .catch(() => {
-        const b = document.getElementById('sniff-status');
-        b.className = 'badge bg-danger'; b.textContent = 'Start Failed';
-        showToast('Failed to start sniffing.');
-      });
-  }
-  function stopSniffing() {
-    fetch('/api/stop_sniffing', { method: 'POST' })
-      .then(r => r.json())
-      .then(() => {
-        const b = document.getElementById('sniff-status');
-        b.className = 'badge bg-warning text-dark'; b.textContent = 'Sniffing Stopped';
-        showToast('Sniffing stopped.');
-      })
-      .catch(() => {
-        const b = document.getElementById('sniff-status');
-        b.className = 'badge bg-danger'; b.textContent = 'Stop Failed';
-        showToast('Failed to stop sniffing.');
-      });
-  }
+// Refresh summary + chart
+function refreshSummary() {
+  fetch("/api/summary")
+    .then(res => res.json())
+    .then(data => {
+      // Update list
+      let list = document.getElementById("protocol-list");
+      list.innerHTML = "";
+      for (const [proto, counts] of Object.entries(data)) {
+        let li = document.createElement("li");
+        let a = document.createElement("a");
+        a.href = `/?protocol=${proto}&source=LIVE`;
+        a.innerText = proto;
+        li.appendChild(a);
+        for (const [src, count] of Object.entries(counts)) {
+          li.innerHTML += ` (${src}=${count})`;
+        }
+        list.appendChild(li);
+      }
 
-  // ---------- DataTable (AJAX + preserve state) ----------
-  const table = new $.fn.dataTable.Api($('#packets-table').DataTable({
-    order: [[0, 'desc']],
+      // Update chart
+      let labels = Object.keys(data);
+      let values = labels.map(p => Object.values(data[p]).reduce((a,b)=>a+b,0));
+      let colors = ["#7E57C2","#42A5F5","#66BB6A","#FFA726","#EF5350","#26C6DA","#AB47BC"];
+      if (chart) chart.destroy();
+      chart = new Chart(document.getElementById("protocolChart"), {
+        type: "doughnut",
+        data: { labels, datasets: [{ data: values, backgroundColor: colors }] }
+      });
+    });
+}
+
+// Sniffing Controls
+function startSniffing() {
+  fetch("/api/start_sniffing", { method: "POST" })
+    .then(res => res.json())
+    .then(() => {
+      document.getElementById("sniff-status").innerText = "✅ Sniffing Started";
+      document.getElementById("sniff-status").className = "status-running";
+    });
+}
+function stopSniffing() {
+  fetch("/api/stop_sniffing", { method: "POST" })
+    .then(res => res.json())
+    .then(() => {
+      document.getElementById("sniff-status").innerText = "🛑 Sniffing Stopped";
+      document.getElementById("sniff-status").className = "status-stopped";
+    });
+}
+
+// DataTable + auto-refresh
+$(document).ready(function () {
+  $('#packetTable').DataTable({
     pageLength: 25,
-    stateSave: true,          // keep page/sort
-    deferRender: true,
-  }));
-
-  function refreshTable() {
-    fetch('/api/packets')
-      .then(r => r.json())
-      .then(data => {
-        const rows = data.packets.map(p => ([
-          p.id,
-          p.src_ip,
-          p.dst_ip,
-          `<span class="badge text-bg-info">${p.protocol}</span>`,
-          p.summary ?? '',
-          p.timestamp ?? '',
-          toIST(p.timestamp ?? ''),
-          p.source ?? ''
-        ]));
-        table.clear();
-        table.rows.add(rows).draw(false); // false = keep paging position
-        markRefreshed();
-      })
-      .catch(() => {});
-  }
-
-  // ---------- Chart ----------
-  const chartCtx = document.getElementById('protocolChart');
-  const protocolChart = new Chart(chartCtx, {
-    type: 'doughnut',
-    data: { labels: [], datasets: [{ data: [], backgroundColor: ['#6f42c1','#0d6efd','#20c997','#ffc107','#dc3545','#17a2b8','#6610f2','#fd7e14'] }] },
-    options: { plugins: { legend: { position: 'bottom' } } }
+    order: [[0, "desc"]]
   });
 
-  function refreshChart() {
-    fetch('/api/summary')
-      .then(r => r.json())
-      .then(s => {
-        const labels = Object.keys(s);
-        const values = labels.map(k => Object.values(s[k]).reduce((a,b)=>a+b,0));
-        protocolChart.data.labels = labels;
-        protocolChart.data.datasets[0].data = values;
-        protocolChart.update();
-      })
-      .catch(() => {});
-  }
-
-  // ---------- All Protocols Modal ----------
-  const allModal = document.getElementById('allProtocolsModal');
-  allModal.addEventListener('show.bs.modal', () => {
-    const target = document.getElementById('allProtocolsBody');
-    target.innerHTML = 'Loading…';
-    fetch('/api/all_protocols')
-      .then(r => r.json())
-      .then(data => {
-        // build a small table from API result
-        const rows = Object.entries(data).map(([proto, srcs]) => {
-          const pairs = Object.entries(srcs).map(([src,c]) => `<span class="badge bg-light text-dark me-1">${src}: ${c}</span>`).join(' ');
-          return `<tr><td>${proto}</td><td>${pairs}</td></tr>`;
-        }).join('');
-        target.innerHTML = `
-          <div class="table-responsive">
-            <table class="table table-sm table-bordered align-middle">
-              <thead class="table-light"><tr><th>Protocol</th><th>Counts</th></tr></thead>
-              <tbody>${rows}</tbody>
-            </table>
-          </div>`;
-      })
-      .catch(() => target.textContent = 'Failed to load.');
-  });
-
-  // ---------- auto refresh loop ----------
-  refreshTable(); refreshChart(); markRefreshed();
-  setInterval(() => { refreshTable(); refreshChart(); }, 3000);
+  // auto refresh every 2s
+  setInterval(refreshSummary, 2000);
+});
 </script>
 </body>
 </html>
