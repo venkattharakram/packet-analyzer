@@ -118,7 +118,7 @@ services:
     container_name: capture-service
     environment:
       SERVICE_PORT: 5004
-      IFACE: enp39s0   # match your EC2 NIC
+      IFACE: ens5   # match your EC2 NIC
     network_mode: "host"   # ✅ critical for sniffing
     cap_add:
       - NET_ADMIN
