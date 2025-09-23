@@ -2,13 +2,13 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# Copy UI requirements
+COPY ui-service/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt gunicorn
+
 # Copy app code
 COPY ui-service/app.py /app/app.py
 COPY ui-service/templates /app/templates
-COPY ui-service/requirements.txt /app/requirements.txt
-
-# Install Flask and requests
-RUN pip install --no-cache-dir -r requirements.txt
 
 EXPOSE 5000
 
