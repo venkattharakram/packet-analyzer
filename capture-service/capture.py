@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from scapy.all import sniff, rdpcap, get_if_list
 from scapy.utils import PcapReader
-import requests, time, os, threading, logging
+import requests, time, os, threading, logging, netifaces
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -30,14 +30,36 @@ def send_packet(pkt, source="LIVE"):
 
 
 def get_default_iface():
-    """Auto-detect interface"""
+    """Auto-detect the default host network interface"""
+    # 1. Check env var (manual override)
     iface = os.getenv("IFACE")
-    if iface:
+    if iface and iface in get_if_list():
+        logging.info(f"🌐 Using IFACE from env: {iface}")
         return iface
-    for candidate in ["enp39s0", "ens5", "eth0", "wlan0"]:
+
+    # 2. Try to detect default gateway interface
+    try:
+        gws = netifaces.gateways()
+        if 'default' in gws and netifaces.AF_INET in gws['default']:
+            iface = gws['default'][netifaces.AF_INET][1]
+            logging.info(f"🌐 Auto-detected default interface: {iface}")
+            return iface
+    except Exception as e:
+        logging.warning(f"⚠️ Failed to detect interface via gateways: {e}")
+
+    # 3. Fallback: check common names
+    for candidate in ["ens5", "eth0", "enp39s0", "wlan0", "lo"]:
         if candidate in get_if_list():
+            logging.info(f"🌐 Fallback interface detected: {candidate}")
             return candidate
-    raise RuntimeError("No suitable network interface found. Available: " + str(get_if_list()))
+
+    # 4. Last resort: pick first available
+    available = get_if_list()
+    if available:
+        logging.info(f"🌐 Defaulting to first available interface: {available[0]}")
+        return available[0]
+
+    raise RuntimeError("❌ No suitable network interface found. Available: " + str(get_if_list()))
 
 
 def run_sniffer(mode="LIVE", pcap_file=None):
