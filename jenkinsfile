@@ -1,10 +1,6 @@
 pipeline {
     agent any
 
-    options {
-        skipDefaultCheckout(true)   // 🚀 Prevent Jenkins from auto-checking out default branch
-    }
-
     parameters {
         string(name: 'DOCKERHUB_USER', defaultValue: 'vivekgshan', description: 'Docker Hub username')
         choice(name: 'STOP_CONTAINERS', choices: ['yes', 'no'], description: 'Stop and remove running containers?')
