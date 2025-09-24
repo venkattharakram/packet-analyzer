@@ -6,7 +6,7 @@ pipeline {
         choice(name: 'STOP_CONTAINERS', choices: ['yes', 'no'], description: 'Stop and remove running containers?')
         choice(name: 'REMOVE_IMAGES', choices: ['yes', 'no'], description: 'Remove Docker images?')
         string(name: 'GIT_URL', defaultValue: 'https://github.com/vivekgshan/packet-analyzer.git', description: 'Git repository URL')
-        string(name: 'GIT_BRANCH', defaultValue: 'Docker-features-v4banu', description: 'Git branch to checkout')
+        string(name: 'GIT_BRANCH', defaultValue: 'Docker-features-v4', description: 'Git branch to checkout')
     }
 
     environment {
