@@ -27,7 +27,7 @@ pipeline {
                             sudo apt-get update -y
                             sudo apt-get install -y ca-certificates curl gnupg lsb-release
 
-                            # Setup Docker repo
+                            # Setup Docker repo (fixed for non-interactive Jenkins)
                             sudo install -m 0755 -d /etc/apt/keyrings
                             curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
                                 sudo gpg --dearmor --batch --yes -o /etc/apt/keyrings/docker.gpg
@@ -130,56 +130,4 @@ pipeline {
                           echo "No images found for $DOCKERHUB_USER"
                         fi
 
-                        PGADMIN_IMG=$(docker images dpage/pgadmin4 -q)
-                        if [ -n "$PGADMIN_IMG" ]; then
-                          echo "Removing pgadmin image"
-                          docker rmi -f $PGADMIN_IMG || true
-                        fi
-
-                        POSTGRES_IMG=$(docker images postgres:15 -q)
-                        if [ -n "$POSTGRES_IMG" ]; then
-                          echo "Removing postgres:15 image"
-                          docker rmi -f $POSTGRES_IMG || true
-                        fi
-                        echo "✅ Image removal complete."
-                    '''
-                }
-            }
-        }
-
-        stage('Build & Push Images') {
-            steps {
-                script {
-                    def services = [
-                        'capture-service',
-                        'analyzer-service',
-                        'parser-service',
-                        'persistor-service',
-                        'ui-service'
-                    ]
-                    for (srv in services) {
-                        sh """
-                            echo "📦 Building and pushing image for $srv..."
-                            docker build -t ${params.DOCKERHUB_USER}/${srv}:${IMAGE_TAG} -f ${srv}/Dockerfile .
-                            docker push ${params.DOCKERHUB_USER}/${srv}:${IMAGE_TAG}
-                        """
-                    }
-                }
-            }
-        }
-
-        stage('Deploy with Docker Compose') {
-            steps {
-                script {
-                    sh """
-                        echo "🚀 Deploying services with Docker Compose..."
-                        export DOCKERHUB_USER=${params.DOCKERHUB_USER}
-                        docker compose pull
-                        docker compose up -d --remove-orphans
-                    """
-                }
-            }
-        }
-    }
-
-    post {
+                        PGADMIN_IMG=$(docker images dpage/pgadmin4 -q)_
