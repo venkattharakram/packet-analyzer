@@ -10,10 +10,12 @@ pipeline {
     }
 
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
-        DOCKERHUB_PASS = "${DOCKERHUB_CREDENTIALS_PSW}"
-        IMAGE_TAG = "latest"
-    }
+    DOCKERHUB_USER = "${params.DOCKERHUB_USER}"   // map parameter into env
+    DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
+    DOCKERHUB_PASS = "${DOCKERHUB_CREDENTIALS_PSW}"
+    IMAGE_TAG = "latest"
+}
+
 
     stages {
 
@@ -25,10 +27,13 @@ pipeline {
         }
 
         stage('Docker Login') {
-            steps {
-                sh "echo $DOCKERHUB_PASS | docker login -u $DOCKERHUB_USER --password-stdin"
-            }
-        }
+    steps {
+        sh '''
+            echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
+        '''
+    }
+}
+
 
         stage('Stop Containers') {
             when {
