@@ -7,9 +7,9 @@ pipeline {
         choice(name: 'REMOVE_IMAGES', choices: ['yes', 'no'], description: 'Remove Docker images?')
         string(name: 'GIT_URL', defaultValue: 'https://github.com/vivekgshan/packet-analyzer.git', description: 'Git repository URL')
         string(name: 'GIT_BRANCH', defaultValue: 'Docker-features-v4', description: 'Git branch to checkout')
-        string(name: 'AZURE_VM_USER', description: 'Azure VM username')
-        string(name: 'AZURE_VM_IP', description: 'Azure VM public IP')
-        string(name: 'AZURE_DEPLOY_DIR', description: 'Directory on Azure VM to deploy the repository')
+        string(name: 'VM_USER', description: 'VM username')
+        string(name: 'VM_IP', description: 'VM public IP')
+        string(name: 'DEPLOY_DIR', description: 'Directory on VM to deploy the repository')
     }
 
     environment {
@@ -107,19 +107,19 @@ pipeline {
             }
         }
 
-        stage('Deploy to Azure VM') {
+        stage('Deploy to VM') {
             steps {
                 sshagent(['azure-ssh-key']) {
                     sh """
-                        echo "Deploying to Azure VM: ${params.AZURE_VM_USER}@${params.AZURE_VM_IP}..."
-                        ssh -o StrictHostKeyChecking=no ${params.AZURE_VM_USER}@${params.AZURE_VM_IP} '
+                        echo "Deploying to VM: ${params.VM_USER}@${params.VM_IP}..."
+                        ssh -o StrictHostKeyChecking=no ${params.VM_USER}@${params.VM_IP} '
                             set -e
                             # Create deployment directory if it does not exist
-                            mkdir -p ${params.AZURE_DEPLOY_DIR}
-                            cd ${params.AZURE_DEPLOY_DIR} || exit 1
+                            mkdir -p ${params.DEPLOY_DIR}
+                            cd ${params.DEPLOY_DIR} || exit 1
 
                             # Clone repo if directory is empty
-                            if [ -z "$(ls -A ${params.AZURE_DEPLOY_DIR})" ]; then
+                            if [ -z "$(ls -A ${params.DEPLOY_DIR})" ]; then
                                 git clone ${params.GIT_URL} .
                             fi
 
