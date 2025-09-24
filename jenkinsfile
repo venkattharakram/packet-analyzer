@@ -2,15 +2,15 @@ pipeline {
     agent any
 
     parameters {
-        string(name: 'DOCKERHUB_USER', defaultValue: 'vivekgshan', description: 'Docker Hub username')
+        string(name: 'DOCKERHUB_USER', defaultValue: 'tharak397', description: 'Docker Hub username')
         choice(name: 'STOP_CONTAINERS', choices: ['yes', 'no'], description: 'Stop and remove running containers?')
         choice(name: 'REMOVE_IMAGES', choices: ['yes', 'no'], description: 'Remove Docker images?')
-        string(name: 'GIT_URL', defaultValue: 'https://github.com/vivekgshan/packet-analyzer.git', description: 'Git repository URL')
+        string(name: 'GIT_URL', defaultValue: 'https://github.com/venkattharakram/packet-analyzer.git', description: 'Git repository URL')
         string(name: 'GIT_BRANCH', defaultValue: 'Docker-features-v4', description: 'Git branch to checkout')
     }
 
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-cred')
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
         DOCKERHUB_PASS = "${DOCKERHUB_CREDENTIALS_PSW}"
         IMAGE_TAG = "latest"
     }
