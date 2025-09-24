@@ -104,19 +104,6 @@ pipeline {
             }
         }
 
-        stage('Deploy with Docker Compose') {
-            steps {
-                script {
-                    sh """
-                        echo "🚀 Deploying services with Docker Compose..."
-                        export DOCKERHUB_USER=$DOCKERHUB_USER
-                        docker-compose pull
-                        docker-compose up -d --remove-orphans
-                    """
-                }
-            }
-        }
-
         stage('Deploy to Pluto VM') {
             steps {
                 sshagent(['azure-ssh-key']) {
